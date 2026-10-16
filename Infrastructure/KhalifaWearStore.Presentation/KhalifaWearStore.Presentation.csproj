@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Core\KhalifaWearStore.Abstraction\KhalifaWearStore.Abstraction.csproj" />
+    <ProjectReference Include="..\..\Core\KhalifaWearStore.Domain\KhalifaWearStore.Domain.csproj" />
+  </ItemGroup>
+
+</Project>

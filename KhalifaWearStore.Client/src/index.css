@@ -1,0 +1,124 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-display: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-brand: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: #060608;
+    color: #F4F4F6;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: 0.04em;
+}
+
+.font-brand {
+  font-family: var(--font-brand);
+  letter-spacing: -0.01em;
+}
+
+/* Smooth Editorial Reveal & Architectural Animations */
+@keyframes revealUp {
+  0% {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleMarkIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.92);
+    filter: blur(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0px);
+  }
+}
+
+@keyframes spinSlow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes floatCard {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes drawLine {
+  0% {
+    stroke-dashoffset: 1200;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.animate-reveal-up {
+  animation: revealUp 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-mark-in {
+  animation: scaleMarkIn 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-spin-slow {
+  animation: spinSlow 22s linear infinite;
+}
+
+.animate-float-card {
+  animation: floatCard 6s ease-in-out infinite;
+}
+
+.animate-draw-line {
+  stroke-dasharray: 1200;
+  animation: drawLine 2.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.glass-panel {
+  background: linear-gradient(145deg, rgba(18, 19, 24, 0.9) 0%, rgba(9, 9, 12, 0.96) 100%);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.silver-border-glow:focus-within {
+  border-color: rgba(255, 255, 255, 0.65);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1);
+}
+
+::-webkit-scrollbar {
+  width: 5px;
+}
+::-webkit-scrollbar-track {
+  background: #060608;
+}
+::-webkit-scrollbar-thumb {
+  background: #23242C;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3E404E;
+}

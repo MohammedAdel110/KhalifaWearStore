@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/Core/">
+    <Project Path="Core/KhalifaWearStore.Abstraction/KhalifaWearStore.Abstraction.csproj" />
+    <Project Path="Core/KhalifaWearStore.Domain/KhalifaWearStore.Domain.csproj" />
+    <Project Path="Core/KhalifaWearStore.Services/KhalifaWearStore.Services.csproj" />
+  </Folder>
+  <Folder Name="/Infrastructure/">
+    <Project Path="Infrastructure/KhalifaWearStore.Persistence/KhalifaWearStore.Persistence.csproj" />
+    <Project Path="Infrastructure/KhalifaWearStore.Presentation/KhalifaWearStore.Presentation.csproj" />
+  </Folder>
+  <Project Path="KhalifaWearStore.Shared/KhalifaWearStore.Shared.csproj" />
+  <Project Path="KhalifaWearStore.Web/KhalifaWearStore.Web.csproj" />
+</Solution>
