@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Search,
   SlidersHorizontal,
@@ -9,6 +9,8 @@ import {
 } from 'lucide-react';
 import {
   resolveProductImage,
+  getProductColorVariants,
+  resolveColourHex,
   type CategoryDto,
   type ProductDto,
 } from '../services/storeApi';
@@ -29,7 +31,7 @@ interface ShopCatalogViewProps {
   sortBy: string;
   onSortChange: (sort: string) => void;
   onResetFilters: () => void;
-  onSelectProduct: (productId: number) => void;
+  onSelectProduct: (productId: number, initialColour?: string) => void;
 }
 
 const SIZES = ['', 'S', 'M', 'L', 'XL', 'XXL'];
@@ -52,6 +54,9 @@ export const ShopCatalogView: React.FC<ShopCatalogViewProps> = ({
   onResetFilters,
   onSelectProduct,
 }) => {
+  const [selectedCardColours, setSelectedCardColours] = useState<
+    Record<number, string>
+  >({});
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8 pb-24">
       {/* Page Header Banner */}
@@ -226,78 +231,141 @@ export const ShopCatalogView: React.FC<ShopCatalogViewProps> = ({
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-7">
-          {products.map((product) => (
-            <div
-              key={product.id}
-              onClick={() => onSelectProduct(product.id)}
-              className="group glass-panel rounded-3xl border border-white/[0.09] hover:border-white/35 overflow-hidden transition-all duration-300 flex flex-col justify-between cursor-pointer shadow-[0_18px_50px_rgba(0,0,0,0.75)]"
-            >
-              <div>
-                <div className="relative h-80 bg-[#0D0E13] overflow-hidden">
-                  <img
-                    src={resolveProductImage(product.image, product.id)}
-                    alt={product.productName}
-                    onError={(e) => {
-                      (e.currentTarget as HTMLImageElement).src =
-                        'https://images.unsplash.com/photo-1556821840-3a63f95609a7?auto=format&fit=crop&w=900&q=85';
-                    }}
-                    className="w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-108"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#060608] via-transparent to-black/25" />
+          {products.map((product) => {
+            const variants = getProductColorVariants(product);
+            const activeColour =
+              selectedCardColours[product.id] ??
+              variants[0]?.colour ??
+              product.colour ??
+              'Obsidian Black';
+            const activeVariant =
+              variants.find(
+                (v) => v.colour.toLowerCase() === activeColour.toLowerCase()
+              ) ?? variants[0];
+            const displayImage =
+              activeVariant?.image ||
+              resolveProductImage(product.image, product.id);
 
-                  <div className="absolute top-3.5 left-3.5 right-3.5 flex items-center justify-between">
-                    <span className="px-2.5 py-1 rounded-lg bg-black/75 border border-white/15 backdrop-blur-md font-display text-[10px] font-bold uppercase tracking-[0.18em] text-white">
-                      {product.categoryName || 'HOODIES'}
-                    </span>
-                    <span
-                      className={`px-2.5 py-1 rounded-md font-brand text-[10px] font-extrabold uppercase tracking-wider ${
-                        product.productAvailable
-                          ? 'bg-white text-[#060608]'
-                          : 'bg-red-500/80 text-white'
-                      }`}
-                    >
-                      {product.productAvailable ? 'AVAILABLE' : 'SOLD OUT'}
-                    </span>
-                  </div>
+            return (
+              <div
+                key={product.id}
+                onClick={() => onSelectProduct(product.id, activeColour)}
+                className="group glass-panel rounded-3xl border border-white/[0.09] hover:border-white/35 overflow-hidden transition-all duration-300 flex flex-col justify-between cursor-pointer shadow-[0_18px_50px_rgba(0,0,0,0.75)]"
+              >
+                <div>
+                  <div className="relative h-80 bg-[#0D0E13] overflow-hidden">
+                    <img
+                      key={displayImage}
+                      src={displayImage}
+                      alt={`${product.productName} - ${activeColour}`}
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).src =
+                          '/product-placeholder.svg';
+                      }}
+                      className="w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-108"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#060608] via-transparent to-black/25" />
 
-                  <div className="absolute inset-x-4 bottom-4 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300">
-                    <div className="w-full py-2.5 rounded-xl bg-white/95 text-[#060608] font-brand text-[11px] font-extrabold uppercase tracking-[0.2em] flex items-center justify-center gap-2 shadow-xl">
-                      <Eye className="w-3.5 h-3.5" />
-                      <span>SELECT SIZE &amp; VIEW STOCK</span>
+                    <div className="absolute top-3.5 left-3.5 right-3.5 flex items-center justify-between">
+                      <span className="px-2.5 py-1 rounded-lg bg-black/75 border border-white/15 backdrop-blur-md font-display text-[10px] font-bold uppercase tracking-[0.18em] text-white">
+                        {product.categoryName || 'HOODIES'}
+                      </span>
+                      <span
+                        className={`px-2.5 py-1 rounded-md font-brand text-[10px] font-extrabold uppercase tracking-wider ${
+                          product.productAvailable
+                            ? 'bg-white text-[#060608]'
+                            : 'bg-red-500/80 text-white'
+                        }`}
+                      >
+                        {product.productAvailable ? 'AVAILABLE' : 'SOLD OUT'}
+                      </span>
+                    </div>
+
+                    <div className="absolute inset-x-4 bottom-4 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300">
+                      <div className="w-full py-2.5 rounded-xl bg-white/95 text-[#060608] font-brand text-[11px] font-extrabold uppercase tracking-[0.2em] flex items-center justify-center gap-2 shadow-xl">
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>SELECT SIZE &amp; VIEW STOCK</span>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="p-5">
-                  <div className="flex items-center justify-between text-[11px] font-display uppercase tracking-[0.18em] text-[#8A8D9F] mb-1.5">
-                    <span>COLOR: {product.colour || 'OBSIDIAN'}</span>
-                    <span>DEFAULT SIZE: {product.size || 'L'}</span>
+                  <div className="p-5">
+                    <div className="flex items-center justify-between text-[11px] font-display uppercase tracking-[0.18em] text-[#8A8D9F] mb-2">
+                      <span>COLOR: {activeColour}</span>
+                      <span>DEFAULT SIZE: {product.size || 'L'}</span>
+                    </div>
+
+                    {/* Small Colored Circles (Swatches) */}
+                    {variants.length > 0 && (
+                      <div
+                        className="flex items-center gap-2 mb-3"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {variants.map((variant) => {
+                          const isSelected =
+                            variant.colour.toLowerCase() ===
+                            activeColour.toLowerCase();
+                          return (
+                            <button
+                              key={variant.colour}
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedCardColours((prev) => ({
+                                  ...prev,
+                                  [product.id]: variant.colour,
+                                }));
+                              }}
+                              title={variant.colour}
+                              aria-label={`Preview ${product.productName} in ${variant.colour}`}
+                              className={`w-5 h-5 rounded-full transition-all cursor-pointer ${
+                                isSelected
+                                  ? 'ring-2 ring-white ring-offset-2 ring-offset-[#0D0E13] scale-110'
+                                  : 'opacity-75 hover:opacity-100 hover:scale-110 border border-white/30'
+                              }`}
+                              style={{
+                                backgroundColor: resolveColourHex(
+                                  variant.colour,
+                                  variant.colorHex
+                                ),
+                              }}
+                            />
+                          );
+                        })}
+                        {variants.length > 1 && (
+                          <span className="text-[10px] font-display uppercase tracking-wider text-[#9EA2B3] ml-1">
+                            {variants.length} COLORS
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    <h3 className="font-brand text-base font-bold text-white uppercase tracking-wide group-hover:text-[#E2E4E9] transition line-clamp-1">
+                      {product.productName}
+                    </h3>
+                    <p className="text-xs text-[#9EA2B3] line-clamp-2 mt-1.5 leading-relaxed">
+                      {product.productDescription}
+                    </p>
                   </div>
-                  <h3 className="font-brand text-base font-bold text-white uppercase tracking-wide group-hover:text-[#E2E4E9] transition line-clamp-1">
-                    {product.productName}
-                  </h3>
-                  <p className="text-xs text-[#9EA2B3] line-clamp-2 mt-1.5 leading-relaxed">
-                    {product.productDescription}
-                  </p>
-                </div>
-              </div>
-
-              <div className="px-5 pb-5 pt-3 border-t border-white/[0.07] flex items-center justify-between">
-                <div>
-                  <span className="text-[10px] font-display uppercase tracking-[0.2em] text-[#7D8091] block">
-                    PRICE
-                  </span>
-                  <span className="font-brand text-lg font-extrabold text-white">
-                    {product.unitPrice.toLocaleString()} EGP
-                  </span>
                 </div>
 
-                <span className="px-3.5 py-2 rounded-xl bg-white/[0.06] group-hover:bg-white text-white group-hover:text-[#060608] font-brand text-[10px] font-bold uppercase tracking-[0.18em] transition">
-                  VIEW STOCK →
-                </span>
+                <div className="px-5 pb-5 pt-3 border-t border-white/[0.07] flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] font-display uppercase tracking-[0.2em] text-[#7D8091] block">
+                      PRICE
+                    </span>
+                    <span className="font-brand text-lg font-extrabold text-white">
+                      {product.unitPrice.toLocaleString()} EGP
+                    </span>
+                  </div>
+
+                  <span className="px-3.5 py-2 rounded-xl bg-white/[0.06] group-hover:bg-white text-white group-hover:text-[#060608] font-brand text-[10px] font-bold uppercase tracking-[0.18em] transition">
+                    VIEW STOCK →
+                  </span>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

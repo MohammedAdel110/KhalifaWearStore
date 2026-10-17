@@ -13,13 +13,10 @@ import {
   CheckCircle2,
   AlertCircle,
   LogOut,
-  UserPlus,
-  Crown,
 } from 'lucide-react';
 import {
   loginUser,
   registerCustomer,
-  createAdminUser,
   type AuthResponseDto,
 } from '../services/authApi';
 
@@ -96,16 +93,6 @@ export const AuthView: React.FC<AuthViewProps> = ({
   const [regPassword, setRegPassword] = useState('');
   const [showRegPassword, setShowRegPassword] = useState(false);
 
-  // Admin Creation form state (Only accessible when logged in as Admin)
-  const [showAdminCreator, setShowAdminCreator] = useState(false);
-  const [adminFirstName, setAdminFirstName] = useState('');
-  const [adminLastName, setAdminLastName] = useState('');
-  const [adminEmail, setAdminEmail] = useState('');
-  const [adminPhone, setAdminPhone] = useState('');
-  const [adminCity, setAdminCity] = useState('Cairo');
-  const [adminPassword, setAdminPassword] = useState('');
-  const [createdAdminResult, setCreatedAdminResult] = useState<AuthResponseDto | null>(null);
-
   // Feedback states
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -119,7 +106,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
   }, []);
 
   const passwordChecks = useMemo(() => {
-    const pwd = showAdminCreator ? adminPassword : regPassword;
+    const pwd = regPassword;
     return [
       { label: '6+ chars', valid: pwd.length >= 6 },
       { label: 'Uppercase (A-Z)', valid: /[A-Z]/.test(pwd) },
@@ -127,7 +114,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
       { label: 'Number (0-9)', valid: /[0-9]/.test(pwd) },
       { label: 'Symbol (@$!%*?&)', valid: /[^A-Za-z0-9]/.test(pwd) },
     ];
-  }, [regPassword, adminPassword, showAdminCreator]);
+  }, [regPassword]);
 
   const passwordStrengthScore = useMemo(
     () => passwordChecks.filter((c) => c.valid).length,
@@ -151,9 +138,15 @@ export const AuthView: React.FC<AuthViewProps> = ({
         email: loginEmail.trim(),
         password: loginPassword,
       });
+      if (data.role !== 'Customer') {
+        setErrorMessage(
+          'Access Denied: This sign-in page is exclusively for Store Customers.'
+        );
+        return;
+      }
       onSessionChange(data);
       if (rememberMe) {
-        localStorage.setItem('kf_auth_session', JSON.stringify(data));
+        localStorage.setItem('kf_customer_session', JSON.stringify(data));
       }
       setSuccessMessage(`Welcome back to Khalifa Wear House, ${data.fullName}.`);
     } catch (err) {
@@ -186,7 +179,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
         password: regPassword,
       });
       onSessionChange(data);
-      localStorage.setItem('kf_auth_session', JSON.stringify(data));
+      localStorage.setItem('kf_customer_session', JSON.stringify(data));
       setSuccessMessage(`Welcome to Khalifa Wear House, ${data.fullName}.`);
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : 'Unable to complete registration');
@@ -195,52 +188,11 @@ export const AuthView: React.FC<AuthViewProps> = ({
     }
   };
 
-  const handleCreateAdminSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!session) return;
-    setErrorMessage(null);
-    setSuccessMessage(null);
-    setCreatedAdminResult(null);
-
-    if (passwordStrengthScore < 5) {
-      setErrorMessage('New admin password must satisfy all 5 security requirements.');
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const newAdmin = await createAdminUser(
-        {
-          firstName: adminFirstName.trim(),
-          lastName: adminLastName.trim(),
-          email: adminEmail.trim(),
-          phoneNo: adminPhone.trim(),
-          city: adminCity.trim(),
-          password: adminPassword,
-        },
-        session.token
-      );
-      setCreatedAdminResult(newAdmin);
-      setSuccessMessage(`Administrator "${newAdmin.fullName}" (${newAdmin.email}) created.`);
-      setAdminFirstName('');
-      setAdminLastName('');
-      setAdminEmail('');
-      setAdminPhone('');
-      setAdminPassword('');
-    } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : 'Failed to create administrator');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const handleLogout = () => {
     onSessionChange(null);
-    setShowAdminCreator(false);
-    setCreatedAdminResult(null);
     setErrorMessage(null);
     setSuccessMessage(null);
-    localStorage.removeItem('kf_auth_session');
+    localStorage.removeItem('kf_customer_session');
   };
 
   const currentSlide = STREETWEAR_SLIDES[activeSlide];
@@ -340,9 +292,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
               <div>
                 <span className="font-display text-[11px] uppercase tracking-[0.26em] text-[#9EA2B3] font-semibold block">
                   {session
-                    ? session.role === 'Admin'
-                      ? 'ADMINISTRATION HQ'
-                      : 'MEMBER VAULT'
+                    ? 'MEMBER VAULT'
                     : mode === 'login'
                     ? 'MEMBER ACCESS'
                     : 'NEW DROP MEMBERSHIP'}
@@ -365,17 +315,8 @@ export const AuthView: React.FC<AuthViewProps> = ({
                 <div className="flex items-start justify-between gap-4 mb-5">
                   <div>
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-[10px] font-display font-bold uppercase tracking-[0.2em] bg-white/10 text-white border border-white/25">
-                      {session.role === 'Admin' ? (
-                        <>
-                          <Crown className="w-3 h-3" />
-                          <span>STORE ADMIN</span>
-                        </>
-                      ) : (
-                        <>
-                          <ShieldCheck className="w-3 h-3" />
-                          <span>VERIFIED MEMBER</span>
-                        </>
-                      )}
+                      <ShieldCheck className="w-3 h-3" />
+                      <span>VERIFIED MEMBER</span>
                     </span>
                     <h3 className="font-brand text-lg font-bold text-white uppercase tracking-wider mt-2.5">
                       {session.fullName}
@@ -405,154 +346,6 @@ export const AuthView: React.FC<AuthViewProps> = ({
                 <div className="flex items-start gap-3 p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-200 text-xs leading-relaxed">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
                   <span>{successMessage}</span>
-                </div>
-              )}
-
-              {session.role === 'Admin' && (
-                <div className="pt-2 border-t border-white/[0.08]">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowAdminCreator(!showAdminCreator);
-                      setErrorMessage(null);
-                      setSuccessMessage(null);
-                    }}
-                    className="w-full flex items-center justify-between px-4 py-3.5 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] border border-white/[0.2] text-white text-xs font-display font-bold uppercase tracking-[0.16em] transition cursor-pointer"
-                  >
-                    <span className="flex items-center gap-2">
-                      <UserPlus className="w-4 h-4 text-white" />
-                      {showAdminCreator
-                        ? 'Hide Admin Provisioning'
-                        : 'Add New Store Administrator'}
-                    </span>
-                    <ArrowRight
-                      className={`w-4 h-4 transition-transform ${
-                        showAdminCreator ? 'rotate-90' : ''
-                      }`}
-                    />
-                  </button>
-
-                  {showAdminCreator && (
-                    <form
-                      onSubmit={handleCreateAdminSubmit}
-                      className="mt-4 p-4 rounded-2xl bg-black/50 border border-white/[0.1] space-y-3.5"
-                    >
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-[10px] font-display uppercase tracking-[0.18em] text-[#9EA2B3] mb-1">
-                            First Name
-                          </label>
-                          <input
-                            type="text"
-                            required
-                            value={adminFirstName}
-                            onChange={(e) => setAdminFirstName(e.target.value)}
-                            placeholder="Tariq"
-                            className="w-full px-3 py-2 rounded-xl bg-white/[0.04] border border-white/[0.1] text-xs text-white focus:outline-none focus:border-white"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-display uppercase tracking-[0.18em] text-[#9EA2B3] mb-1">
-                            Last Name
-                          </label>
-                          <input
-                            type="text"
-                            required
-                            value={adminLastName}
-                            onChange={(e) => setAdminLastName(e.target.value)}
-                            placeholder="Khalifa"
-                            className="w-full px-3 py-2 rounded-xl bg-white/[0.04] border border-white/[0.1] text-xs text-white focus:outline-none focus:border-white"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-[10px] font-display uppercase tracking-[0.18em] text-[#9EA2B3] mb-1">
-                            Admin Email
-                          </label>
-                          <input
-                            type="email"
-                            required
-                            value={adminEmail}
-                            onChange={(e) => setAdminEmail(e.target.value)}
-                            placeholder="admin2@khalifawear.com"
-                            className="w-full px-3 py-2 rounded-xl bg-white/[0.04] border border-white/[0.1] text-xs text-white focus:outline-none focus:border-white"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-display uppercase tracking-[0.18em] text-[#9EA2B3] mb-1">
-                            Phone Number
-                          </label>
-                          <input
-                            type="tel"
-                            required
-                            value={adminPhone}
-                            onChange={(e) => setAdminPhone(e.target.value)}
-                            placeholder="01012345678"
-                            className="w-full px-3 py-2 rounded-xl bg-white/[0.04] border border-white/[0.1] text-xs text-white focus:outline-none focus:border-white"
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-[10px] font-display uppercase tracking-[0.18em] text-[#9EA2B3] mb-1">
-                          City
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          value={adminCity}
-                          onChange={(e) => setAdminCity(e.target.value)}
-                          placeholder="Cairo"
-                          className="w-full px-3 py-2 rounded-xl bg-white/[0.04] border border-white/[0.1] text-xs text-white focus:outline-none focus:border-white"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-[10px] font-display uppercase tracking-[0.18em] text-[#9EA2B3] mb-1">
-                          Temporary Password
-                        </label>
-                        <input
-                          type="password"
-                          required
-                          value={adminPassword}
-                          onChange={(e) => setAdminPassword(e.target.value)}
-                          placeholder="e.g. Khalifa@2026"
-                          className="w-full px-3 py-2 rounded-xl bg-white/[0.04] border border-white/[0.1] text-xs text-white focus:outline-none focus:border-white"
-                        />
-                      </div>
-
-                      <div className="flex flex-wrap gap-1.5 pt-1">
-                        {passwordChecks.map((check) => (
-                          <span
-                            key={check.label}
-                            className={`px-2 py-0.5 rounded-md text-[10px] border transition ${
-                              check.valid
-                                ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
-                                : 'bg-white/[0.02] border-white/[0.08] text-[#7D8091]'
-                            }`}
-                          >
-                            {check.label}
-                          </span>
-                        ))}
-                      </div>
-
-                      <button
-                        type="submit"
-                        disabled={isLoading}
-                        className="w-full py-2.5 rounded-xl bg-white hover:bg-[#E2E4E9] text-[#060608] font-brand font-bold text-xs uppercase tracking-[0.18em] transition cursor-pointer disabled:opacity-50"
-                      >
-                        {isLoading ? 'PROVISIONING...' : 'AUTHORIZE & CREATE ADMIN'}
-                      </button>
-
-                      {createdAdminResult && (
-                        <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-[11px] text-emerald-200">
-                          New Admin Ready: <strong>{createdAdminResult.email}</strong>
-                        </div>
-                      )}
-                    </form>
-                  )}
                 </div>
               )}
 

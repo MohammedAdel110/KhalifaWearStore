@@ -23,7 +23,7 @@ namespace KhalifaWearStore.Presentation.Controllers.Customer
         }
 
         [HttpGet("me")]
-        [Authorize(Roles = "Customer")]
+        [Authorize]
         [ProducesResponseType(typeof(ApiResponse<CustomerDetailsDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
         public async Task<ActionResult> GetMyProfile()
@@ -34,7 +34,7 @@ namespace KhalifaWearStore.Presentation.Controllers.Customer
         }
 
         [HttpPut("me")]
-        [Authorize(Roles = "Customer")]
+        [Authorize]
         [ProducesResponseType(typeof(ApiResponse<CustomerDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
         public async Task<ActionResult> UpdateMyProfile([FromBody] CustomerToUpdateDto updateDto)

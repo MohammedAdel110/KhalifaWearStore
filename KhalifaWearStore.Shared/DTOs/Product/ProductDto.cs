@@ -12,5 +12,6 @@ namespace KhalifaWearStore.Shared.DTOs.Product
         public string Size { get; set; } = string.Empty;
         public bool ProductAvailable { get; set; }
         public string? Image { get; set; }
+        public List<ProductColorVariantDto> ColorVariants { get; set; } = new();
     }
 }

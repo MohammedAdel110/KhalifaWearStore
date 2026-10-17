@@ -10,6 +10,8 @@ import {
 } from 'lucide-react';
 import {
   resolveProductImage,
+  getProductColorVariants,
+  resolveColourHex,
   type CategoryDto,
   type ProductDto,
 } from '../services/storeApi';
@@ -19,7 +21,7 @@ interface HomeViewProps {
   featuredProducts: ProductDto[];
   loading: boolean;
   onExploreCatalog: (categoryId?: number | null) => void;
-  onSelectProduct: (productId: number) => void;
+  onSelectProduct: (productId: number, initialColour?: string) => void;
 }
 
 export const HomeView: React.FC<HomeViewProps> = ({
@@ -32,6 +34,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
   // Subtle interactive mouse parallax for the Hero stage
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [likedIds, setLikedIds] = useState<number[]>([]);
+  const [selectedCardColours, setSelectedCardColours] = useState<
+    Record<number, string>
+  >({});
 
   const handleMouseMove = (e: React.MouseEvent<HTMLElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -166,7 +171,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             className="w-full max-w-[880px] flex items-center justify-center pointer-events-none animate-mark-in"
           >
             <img
-              src="/kf-mark.png"
+              src="/kf-mark.svg"
               alt="KF Emblem"
               className="w-[84vw] sm:w-[72vw] lg:w-[820px] h-auto object-contain opacity-95 drop-shadow-[0_25px_70px_rgba(0,0,0,0.95)]"
             />
@@ -186,9 +191,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
             className="absolute z-20 w-[230px] sm:w-[290px] lg:w-[330px] aspect-[3/4] overflow-hidden bg-[#0D0E12] border border-white/20 shadow-[0_35px_90px_rgba(0,0,0,0.95)] cursor-pointer group"
           >
             <img
-              src="https://images.unsplash.com/photo-1556821840-3a63f95609a7?auto=format&fit=crop&w=1000&q=85"
+              src="/hero-hoodie.jpg"
               alt="500 GSM Heavyweight Hoodie"
-              className="w-full h-full object-cover object-center filter grayscale-[20%] contrast-125 transition-transform duration-700 group-hover:scale-105"
+              className="w-full h-full object-cover object-left filter grayscale-[20%] contrast-125 transition-transform duration-700 group-hover:scale-105"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-black/20" />
             <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between">
@@ -361,7 +366,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             </svg>
 
             <img
-              src="/kf-mark.png"
+              src="/kf-mark.svg"
               alt="KF Geometric Construction"
               className="relative z-10 w-4/5 h-auto object-contain opacity-45 group-hover:opacity-85 transition-opacity duration-500"
             />
@@ -379,7 +384,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           >
             {/* Giant Tonal KF Watermark in Background */}
             <img
-              src="/kf-mark.png"
+              src="/kf-mark.svg"
               alt=""
               className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[88%] h-auto object-contain opacity-[0.06]"
             />
@@ -469,7 +474,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 </p>
               </div>
               <img
-                src="/kf-mark.png"
+                src="/kf-mark.svg"
                 alt="KF"
                 className="h-5 w-auto object-contain shrink-0 opacity-90"
               />
@@ -510,13 +515,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
           <div className="lg:col-span-7 relative h-[360px] sm:h-[460px] overflow-hidden bg-[#08090C]">
             <img
-              src="https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=1400&q=85"
+              src="/new-vibes-hoodies.png"
               alt="New Season Heavyweight Collection"
-              className="w-full h-full object-cover object-center filter grayscale-[35%] contrast-125"
+              className="w-full h-full object-cover object-center"
             />
             <div className="absolute inset-0 bg-gradient-to-r from-[#101116] via-transparent to-transparent" />
             <img
-              src="/kf-mark.png"
+              src="/kf-mark.svg"
               alt=""
               className="pointer-events-none absolute right-8 bottom-6 h-16 w-auto object-contain opacity-25"
             />
@@ -611,20 +616,35 @@ export const HomeView: React.FC<HomeViewProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {featuredProducts.slice(0, 6).map((product) => {
               const isLiked = likedIds.includes(product.id);
+              const variants = getProductColorVariants(product);
+              const activeColour =
+                selectedCardColours[product.id] ??
+                variants[0]?.colour ??
+                product.colour ??
+                'Obsidian Black';
+              const activeVariant =
+                variants.find(
+                  (v) => v.colour.toLowerCase() === activeColour.toLowerCase()
+                ) ?? variants[0];
+              const displayImage =
+                activeVariant?.image ||
+                resolveProductImage(product.image, product.id);
+
               return (
                 <div
                   key={product.id}
-                  onClick={() => onSelectProduct(product.id)}
+                  onClick={() => onSelectProduct(product.id, activeColour)}
                   className="group cursor-pointer flex flex-col"
                 >
                   {/* Sharp 3:4 Portrait Image Frame */}
-                  <div className="relative aspect-[3/4] w-full bg-[#101116] border border-white/[0.09] overflow-hidden mb-4">
+                  <div className="relative aspect-[3/4] w-full bg-[#101116] border border-white/[0.09] overflow-hidden mb-3.5">
                     <img
-                      src={resolveProductImage(product.image, product.id)}
-                      alt={product.productName}
+                      key={displayImage}
+                      src={displayImage}
+                      alt={`${product.productName} - ${activeColour}`}
                       onError={(e) => {
                         (e.currentTarget as HTMLImageElement).src =
-                          'https://images.unsplash.com/photo-1556821840-3a63f95609a7?auto=format&fit=crop&w=900&q=85';
+                          '/product-placeholder.svg';
                       }}
                       className="w-full h-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-105"
                     />
@@ -653,11 +673,56 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     </div>
                   </div>
 
+                  {/* Small Colored Circles (Swatches) */}
+                  {variants.length > 0 && (
+                    <div
+                      className="flex items-center gap-2 mb-2"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {variants.map((variant) => {
+                        const isSelected =
+                          variant.colour.toLowerCase() ===
+                          activeColour.toLowerCase();
+                        return (
+                          <button
+                            key={variant.colour}
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedCardColours((prev) => ({
+                                ...prev,
+                                [product.id]: variant.colour,
+                              }));
+                            }}
+                            title={variant.colour}
+                            aria-label={`Preview ${product.productName} in ${variant.colour}`}
+                            className={`w-4 h-4 rounded-full transition-all cursor-pointer ${
+                              isSelected
+                                ? 'ring-2 ring-white ring-offset-2 ring-offset-[#060608] scale-110'
+                                : 'opacity-75 hover:opacity-100 hover:scale-110 border border-white/30'
+                            }`}
+                            style={{
+                              backgroundColor: resolveColourHex(
+                                variant.colour,
+                                variant.colorHex
+                              ),
+                            }}
+                          />
+                        );
+                      })}
+                      {variants.length > 1 && (
+                        <span className="text-[9px] font-display uppercase tracking-wider text-[#9EA2B3] ml-1">
+                          {variants.length} COLORS
+                        </span>
+                      )}
+                    </div>
+                  )}
+
                   {/* Minimalist Editorial Product Meta */}
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <p className="font-display text-[10px] uppercase tracking-[0.2em] text-[#7D8091]">
-                        {product.categoryName || 'HOODIES'} • {product.colour || 'OBSIDIAN'}
+                        {product.categoryName || 'HOODIES'} • {activeColour}
                       </p>
                       <h3 className="font-display text-sm font-bold uppercase tracking-wide text-white mt-0.5 group-hover:underline">
                         {product.productName}

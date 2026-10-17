@@ -8,6 +8,7 @@ namespace KhalifaWearStore.Shared.DTOs.Order
         public DateTime OrderDate { get; set; }
         public bool Paid { get; set; }
         public DateTime? PaymentDate { get; set; }
+        public string OrderStatus { get; set; } = "Pending";
 
         // Customer Snapshot
         public int CustomerId { get; set; }
@@ -15,6 +16,7 @@ namespace KhalifaWearStore.Shared.DTOs.Order
         public string CustomerEmail { get; set; } = string.Empty;
         public string CustomerPhoneNo { get; set; } = string.Empty;
         public string CustomerCity { get; set; } = string.Empty;
+        public string ShippingAddress { get; set; } = string.Empty;
         public string CustomerPostcode { get; set; } = string.Empty;
 
         // Payment Info
@@ -22,6 +24,10 @@ namespace KhalifaWearStore.Shared.DTOs.Order
         public string PaymentType { get; set; } = string.Empty;
 
         // Order Line Items & Grand Total
+        public decimal Subtotal { get; set; }
+        public decimal ShippingFee { get; set; }
+        public decimal DiscountAmount { get; set; }
+        public string? PromoCode { get; set; }
         public decimal OrderTotal { get; set; }
         public List<OrderDetailItemDto> Items { get; set; } = new();
     }

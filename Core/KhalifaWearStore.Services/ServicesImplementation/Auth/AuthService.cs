@@ -100,6 +100,44 @@ namespace KhalifaWearStore.Services.ServicesImplementation.Auth
             };
         }
 
+        public async Task<IReadOnlyList<AdminAccountDto>> GetAllAdminsAsync()
+        {
+            var admins = await userManager.GetUsersInRoleAsync(UserRole.Admin.ToString());
+            var owners = await userManager.GetUsersInRoleAsync(UserRole.Owner.ToString());
+            var ownerIds = owners.Select(o => o.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var list = admins
+                .Select(u => new AdminAccountDto
+                {
+                    Id = u.Id,
+                    FullName = u.FullName,
+                    Email = u.Email ?? string.Empty,
+                    PhoneNumber = u.PhoneNumber ?? string.Empty,
+                    Role = ownerIds.Contains(u.Id) || u.Role == UserRole.Owner ? "Owner" : "Admin"
+                })
+                .OrderByDescending(a => a.Role == "Owner")
+                .ThenBy(a => a.FullName)
+                .ToList();
+
+            return list;
+        }
+
+        public async Task<bool> DeleteAdminAsync(string adminUserId)
+        {
+            var user = await userManager.FindByIdAsync(adminUserId)
+                ?? throw new NotFoundCutomeException("Admin user not found.");
+
+            var isOwner = await userManager.IsInRoleAsync(user, UserRole.Owner.ToString())
+                          || user.Role == UserRole.Owner
+                          || string.Equals(user.Email, "121mohamedadel121@gmail.com", StringComparison.OrdinalIgnoreCase);
+
+            if (isOwner)
+                throw new BadRequestCustomeException("The Store Owner account cannot be deleted.");
+
+            var result = await userManager.DeleteAsync(user);
+            return result.Succeeded;
+        }
+
         public async Task<AuthModelDto> LoginAsync(LoginDto loginDto)
         {
             var user = await userManager.FindByEmailAsync(loginDto.Email);

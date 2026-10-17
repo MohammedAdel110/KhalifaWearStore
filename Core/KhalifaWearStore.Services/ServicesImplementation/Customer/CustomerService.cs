@@ -1,7 +1,9 @@
 using AutoMapper;
+using Microsoft.AspNetCore.Identity;
 using KhalifaWearStore.Abstraction.IServices.Customer;
 using KhalifaWearStore.Domain.Contracts.UnitOfWorkPattern;
 using KhalifaWearStore.Domain.Exceptions;
+using KhalifaWearStore.Domain.Models.User;
 using KhalifaWearStore.Services.Specifications.CustomerSpec;
 using KhalifaWearStore.Shared.Common.Pagination;
 using KhalifaWearStore.Shared.Common.Params.Customer;
@@ -10,24 +12,55 @@ using CustomerEntity = KhalifaWearStore.Domain.Models.User.Customer;
 
 namespace KhalifaWearStore.Services.ServicesImplementation.Customer
 {
-    public class CustomerService(IUnitOfWork unitOfWork, IMapper mapper) : ICustomerService
+    public class CustomerService(
+        IUnitOfWork unitOfWork,
+        IMapper mapper,
+        UserManager<ApplicationUser> userManager) : ICustomerService
     {
-        public async Task<CustomerDetailsDto> GetMyProfileAsync(string applicationUserId)
+        private async Task<CustomerEntity> GetOrCreateCustomerAsync(string applicationUserId)
         {
             var repo = unitOfWork.GetRepository<CustomerEntity, int>();
             var spec = new CustomerByAppUserIdSpec(applicationUserId);
-            var customer = await repo.GetByIdWithSpecAsync(spec)
+            var customer = await repo.GetByIdWithSpecAsync(spec);
+            if (customer != null)
+                return customer;
+
+            var appUser = await userManager.FindByIdAsync(applicationUserId)
                 ?? throw new NotFoundCutomeException("Customer profile not found for this account.");
 
+            var nameParts = (appUser.FullName ?? string.Empty)
+                .Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+            var firstName = nameParts.Length > 0 ? nameParts[0] : "Khalifa";
+            var lastName = nameParts.Length > 1 ? nameParts[1] : "Member";
+
+            customer = new CustomerEntity
+            {
+                FirstName = firstName,
+                LastName = lastName,
+                Email = appUser.Email ?? string.Empty,
+                PhoneNo = !string.IsNullOrWhiteSpace(appUser.PhoneNumber) ? appUser.PhoneNumber : string.Empty,
+                City = "Cairo",
+                Postcode = "00000",
+                Address = string.Empty,
+                ApplicationUserId = appUser.Id
+            };
+
+            await repo.AddAsync(customer);
+            await unitOfWork.SaveChangesAsync();
+
+            return customer;
+        }
+
+        public async Task<CustomerDetailsDto> GetMyProfileAsync(string applicationUserId)
+        {
+            var customer = await GetOrCreateCustomerAsync(applicationUserId);
             return mapper.Map<CustomerDetailsDto>(customer);
         }
 
         public async Task<CustomerDto> UpdateMyProfileAsync(string applicationUserId, CustomerToUpdateDto updateDto)
         {
             var repo = unitOfWork.GetRepository<CustomerEntity, int>();
-            var spec = new CustomerByAppUserIdSpec(applicationUserId);
-            var customer = await repo.GetByIdWithSpecAsync(spec)
-                ?? throw new NotFoundCutomeException("Customer profile not found for this account.");
+            var customer = await GetOrCreateCustomerAsync(applicationUserId);
 
             mapper.Map(updateDto, customer);
             customer.UpdatedAt = DateTime.UtcNow;

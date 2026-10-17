@@ -8,6 +8,8 @@ namespace KhalifaWearStore.Abstraction.IServices.Auth
         Task<AuthModelDto> LoginAsync(LoginDto loginDto);
         Task<AuthModelDto> RegisterAsync(RegisterDto registerDto);
         Task<AuthModelDto> CreateAdminAsync(CreateAdminDto createAdminDto);
+        Task<IReadOnlyList<AdminAccountDto>> GetAllAdminsAsync();
+        Task<bool> DeleteAdminAsync(string adminUserId);
         Task ForgetPasswordAsync(ForgetPasswordDto forgetPasswordDto);
         Task<bool> VerifyOtpAsync(VerifyOtpDto verifyOtpDto);
         Task<AuthModelDto> ResetPasswordAsync(ResetPasswordDto resetPasswordDto);

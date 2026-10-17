@@ -32,7 +32,7 @@ namespace KhalifaWearStore.Presentation.Controllers.Product
         }
 
         [HttpPost]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Owner")]
         [ProducesResponseType(typeof(ApiResponse<ProductDetailsDto>), StatusCodes.Status201Created)]
         [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
         public async Task<ActionResult> CreateProduct([FromForm] CreateProductDto createDto)
@@ -42,7 +42,7 @@ namespace KhalifaWearStore.Presentation.Controllers.Product
         }
 
         [HttpPut("{id:int}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Owner")]
         [ProducesResponseType(typeof(ApiResponse<ProductDetailsDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
         public async Task<ActionResult> UpdateProduct([FromRoute] int id, [FromForm] UpdateProductDto updateDto)
@@ -52,7 +52,7 @@ namespace KhalifaWearStore.Presentation.Controllers.Product
         }
 
         [HttpDelete("{id:int}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Owner")]
         [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
         public async Task<ActionResult> DeleteProduct([FromRoute] int id)
@@ -62,6 +62,18 @@ namespace KhalifaWearStore.Presentation.Controllers.Product
                 return Success("Product deleted successfully");
 
             return BadRequestError("Failed to delete product");
+        }
+
+        [HttpPost("color-image")]
+        [Authorize(Roles = "Admin,Owner")]
+        [ProducesResponseType(typeof(ApiResponse<ProductColorVariantDto>), StatusCodes.Status200OK)]
+        public async Task<ActionResult> UploadColorImage(
+            [FromForm] IFormFile file,
+            [FromForm] string? colour,
+            [FromForm] string? colorHex)
+        {
+            var result = await productService.UploadColorImageAsync(file, colour, colorHex);
+            return Success(result, "Color variant image uploaded successfully");
         }
     }
 }

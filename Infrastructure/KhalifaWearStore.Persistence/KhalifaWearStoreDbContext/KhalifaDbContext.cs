@@ -17,6 +17,7 @@ namespace KhalifaWearStore.Persistence.KhalifaWearStoreDbContext
         public DbSet<Payment> Payments { get; set; }
         public DbSet<Order> Orders { get; set; }
         public DbSet<OrderDetail> OrderDetails { get; set; }
+        public DbSet<PromoCode> PromoCodes { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {

@@ -49,6 +49,9 @@ namespace KhalifaWearStore.Persistence.Configurations.CatalogConfig
                 .HasColumnName("image")
                 .HasMaxLength(500);
 
+            builder.Property(x => x.ColorVariantsJson)
+                .HasColumnName("colorVariantsJson");
+
             // Relationship: Category (1) -> Products (Many)
             builder.HasOne(x => x.Category)
                 .WithMany(c => c.Products)

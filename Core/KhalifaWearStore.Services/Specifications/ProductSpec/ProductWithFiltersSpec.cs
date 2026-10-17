@@ -23,6 +23,7 @@ namespace KhalifaWearStore.Services.Specifications.ProductSpec
             if (!isCountSpec)
             {
                 AddInclude(p => p.Category);
+                AddInclude(p => p.Stocks);
 
                 switch (queryParams.Sort?.ToLowerInvariant())
                 {

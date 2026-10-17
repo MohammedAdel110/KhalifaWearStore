@@ -11,6 +11,7 @@ namespace KhalifaWearStore.Domain.Models.Catalog
         public string Size { get; set; } = string.Empty;
         public bool ProductAvailable { get; set; } = true;
         public string? Image { get; set; }
+        public string? ColorVariantsJson { get; set; }
 
         // Foreign Key: Category (1) -> Products (Many)
         public int CategoryId { get; set; }

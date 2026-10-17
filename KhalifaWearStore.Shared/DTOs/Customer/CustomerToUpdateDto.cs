@@ -16,9 +16,11 @@ namespace KhalifaWearStore.Shared.DTOs.Customer
         [MaxLength(100)]
         public string City { get; set; } = null!;
 
-        [Required(ErrorMessage = "Postcode is required")]
-        [MaxLength(20)]
-        public string Postcode { get; set; } = null!;
+        [MaxLength(500)]
+        public string Address { get; set; } = string.Empty;
+
+        [MaxLength(100)]
+        public string Postcode { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Phone number is required")]
         [MaxLength(30)]

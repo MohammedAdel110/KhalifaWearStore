@@ -32,6 +32,38 @@ namespace KhalifaWearStore.Persistence.Configurations.OrdersOperationsConfig
             builder.Property(x => x.PaymentDate)
                 .HasColumnName("paymentDate");
 
+            builder.Property(x => x.OrderStatus)
+                .HasColumnName("orderStatus")
+                .HasMaxLength(40)
+                .HasDefaultValue("Pending")
+                .IsRequired();
+
+            builder.Property(x => x.ShippingFee)
+                .HasColumnName("shippingFee")
+                .HasColumnType("decimal(18,2)")
+                .HasDefaultValue(0m);
+
+            builder.Property(x => x.DiscountAmount)
+                .HasColumnName("discountAmount")
+                .HasColumnType("decimal(18,2)")
+                .HasDefaultValue(0m);
+
+            builder.Property(x => x.PromoCode)
+                .HasColumnName("promoCode")
+                .HasMaxLength(60);
+
+            builder.Property(x => x.ShippingAddress)
+                .HasColumnName("shippingAddress")
+                .HasMaxLength(500);
+
+            builder.Property(x => x.ShippingCity)
+                .HasColumnName("shippingCity")
+                .HasMaxLength(100);
+
+            builder.Property(x => x.ShippingPhoneNo)
+                .HasColumnName("shippingPhoneNo")
+                .HasMaxLength(30);
+
             // Relationship: Customer (1) -> Orders (Many)
             builder.HasOne(x => x.Customer)
                 .WithMany(c => c.Orders)

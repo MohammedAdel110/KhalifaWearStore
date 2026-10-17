@@ -22,9 +22,18 @@ namespace KhalifaWearStore.Presentation.Controllers.Auth
             return Success(result, "Account Created Successfully");
         }
 
-        // 2. Admin-Only Endpoint to Add Another Admin
+        // 2. Owner-Only Endpoints for Admin Management
+        [HttpGet("admins")]
+        [Authorize(Roles = "Owner")]
+        [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<AdminAccountDto>>), StatusCodes.Status200OK)]
+        public async Task<ActionResult> GetAllAdmins()
+        {
+            var result = await authService.GetAllAdminsAsync();
+            return Success(result, "Administrators retrieved successfully");
+        }
+
         [HttpPost("create-admin")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Owner")]
         [ProducesResponseType(typeof(ApiResponse<AuthModelDto>), StatusCodes.Status201Created)]
         [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
@@ -33,6 +42,18 @@ namespace KhalifaWearStore.Presentation.Controllers.Auth
         {
             var result = await authService.CreateAdminAsync(dto);
             return Created(result, "Admin Account Created Successfully");
+        }
+
+        [HttpDelete("admins/{id}")]
+        [Authorize(Roles = "Owner")]
+        [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status200OK)]
+        public async Task<ActionResult> DeleteAdmin([FromRoute] string id)
+        {
+            var deleted = await authService.DeleteAdminAsync(id);
+            if (!deleted)
+                return BadRequestError("Failed to remove administrator.");
+
+            return Success("Administrator account removed successfully");
         }
 
         // 3. Login

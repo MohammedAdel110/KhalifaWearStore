@@ -7,26 +7,43 @@ import {
   Minus,
   Plus,
   AlertCircle,
+  ArrowRight,
+  Ruler,
+  Flame,
 } from 'lucide-react';
 import {
   fetchProductDetails,
   fetchStocksByProduct,
   resolveProductImage,
+  getProductColorVariants,
+  resolveColourHex,
   type ProductDetailsDto,
   type StockDto,
   type BagItem,
 } from '../services/storeApi';
 
+const KHALIFA_SIZE_CHART = [
+  { size: 'S', chest: '58 cm', length: '68 cm', shoulder: '56 cm', fit: '160–170 cm / 55–68 kg' },
+  { size: 'M', chest: '61 cm', length: '71 cm', shoulder: '59 cm', fit: '168–178 cm / 65–78 kg' },
+  { size: 'L', chest: '64 cm', length: '74 cm', shoulder: '62 cm', fit: '175–185 cm / 75–90 kg' },
+  { size: 'XL', chest: '67 cm', length: '77 cm', shoulder: '65 cm', fit: '182–192 cm / 88–105 kg' },
+  { size: 'XXL', chest: '70 cm', length: '79 cm', shoulder: '68 cm', fit: '188+ cm / 100–120 kg' },
+];
+
 interface ProductDetailModalProps {
   productId: number | null;
+  initialColour?: string | null;
   onClose: () => void;
   onAddToBag: (item: BagItem) => void;
+  onCheckOutNow?: (item: BagItem) => void;
 }
 
 export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   productId,
+  initialColour,
   onClose,
   onAddToBag,
+  onCheckOutNow,
 }) => {
   const [product, setProduct] = useState<ProductDetailsDto | null>(null);
   const [stocks, setStocks] = useState<StockDto[]>([]);
@@ -37,6 +54,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   const [selectedSize, setSelectedSize] = useState<string>('');
   const [quantity, setQuantity] = useState<number>(1);
   const [addedFeedback, setAddedFeedback] = useState(false);
+  const [showSizeGuide, setShowSizeGuide] = useState(false);
 
   useEffect(() => {
     if (!productId) return;
@@ -48,18 +66,40 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     Promise.all([fetchProductDetails(productId), fetchStocksByProduct(productId)])
       .then(([prodData, stockList]) => {
         if (!isMounted) return;
-        setProduct(prodData);
         const mergedStocks =
           stockList.length > 0 ? stockList : prodData.stocks ?? [];
+        const enrichedProd: ProductDetailsDto = {
+          ...prodData,
+          stocks: mergedStocks,
+        };
+        setProduct(enrichedProd);
         setStocks(mergedStocks);
 
-        if (mergedStocks.length > 0) {
+        const variants = getProductColorVariants(enrichedProd);
+        const preferredColour =
+          (initialColour &&
+            variants.find(
+              (v) => v.colour.toLowerCase() === initialColour.toLowerCase()
+            )?.colour) ||
+          variants[0]?.colour ||
+          prodData.colour ||
+          'Obsidian Black';
+
+        setSelectedColour(preferredColour);
+
+        const stocksForPreferred = mergedStocks.filter(
+          (s) => s.colour.toLowerCase() === preferredColour.toLowerCase()
+        );
+        if (stocksForPreferred.length > 0) {
+          const firstAvailable =
+            stocksForPreferred.find((s) => s.quantityInStock > 0) ??
+            stocksForPreferred[0];
+          setSelectedSize(firstAvailable.size);
+        } else if (mergedStocks.length > 0) {
           const firstAvailable =
             mergedStocks.find((s) => s.quantityInStock > 0) ?? mergedStocks[0];
-          setSelectedColour(firstAvailable.colour);
           setSelectedSize(firstAvailable.size);
         } else {
-          setSelectedColour(prodData.colour ?? 'Obsidian Black');
           setSelectedSize(prodData.size ?? 'L');
         }
         setQuantity(1);
@@ -75,16 +115,27 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [productId]);
+  }, [productId, initialColour]);
 
-  const availableColours = useMemo(() => {
-    const set = new Set<string>();
-    stocks.forEach((s) => {
-      if (s.colour) set.add(s.colour);
-    });
-    if (set.size === 0 && product?.colour) set.add(product.colour);
-    return Array.from(set);
-  }, [stocks, product]);
+  const colorVariants = useMemo(() => {
+    if (!product) return [];
+    return getProductColorVariants({ ...product, stocks });
+  }, [product, stocks]);
+
+  const activeColorVariant = useMemo(() => {
+    return (
+      colorVariants.find(
+        (v) => v.colour.toLowerCase() === selectedColour.toLowerCase()
+      ) ?? colorVariants[0]
+    );
+  }, [colorVariants, selectedColour]);
+
+  const activeDisplayImage = useMemo(() => {
+    if (activeColorVariant?.image) {
+      return activeColorVariant.image;
+    }
+    return resolveProductImage(product?.image, product?.id);
+  }, [activeColorVariant, product]);
 
   const sizesForColour = useMemo(() => {
     const filtered = stocks.filter(
@@ -122,22 +173,39 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     setQuantity(1);
   };
 
-  const handleAdd = () => {
-    if (!product || maxAvailable <= 0) return;
-    onAddToBag({
+  const buildBagItem = (): BagItem | null => {
+    if (!product || maxAvailable <= 0) return null;
+    return {
       stockId: activeStockVariant?.id ?? product.id * 100,
       productId: product.id,
       productName: product.productName,
       categoryName: product.categoryName ?? "Men's Streetwear",
-      image: resolveProductImage(product.image, product.id),
+      image: activeDisplayImage,
       size: selectedSize,
       colour: selectedColour,
       unitPrice: product.unitPrice,
       quantity,
       maxStock: maxAvailable,
-    });
+    };
+  };
+
+  const handleAdd = () => {
+    const item = buildBagItem();
+    if (!item) return;
+    onAddToBag(item);
     setAddedFeedback(true);
     setTimeout(() => setAddedFeedback(false), 1800);
+  };
+
+  const handleCheckOutNowClick = () => {
+    const item = buildBagItem();
+    if (!item) return;
+    if (onCheckOutNow) {
+      onCheckOutNow(item);
+    } else {
+      onAddToBag(item);
+      onClose();
+    }
   };
 
   return (
@@ -170,13 +238,14 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             {/* Left Column: High-Contrast Streetwear Product Visual */}
             <div className="md:w-[48%] relative bg-[#0B0C10] min-h-[320px] md:min-h-[520px] overflow-hidden flex items-center justify-center">
               <img
-                src={resolveProductImage(product.image, product.id)}
-                alt={product.productName}
+                key={activeDisplayImage}
+                src={activeDisplayImage}
+                alt={`${product.productName} - ${selectedColour}`}
                 onError={(e) => {
                   (e.currentTarget as HTMLImageElement).src =
-                    'https://images.unsplash.com/photo-1556821840-3a63f95609a7?auto=format&fit=crop&w=900&q=85';
+                    '/product-placeholder.svg';
                 }}
-                className="w-full h-full object-cover object-center"
+                className="w-full h-full object-cover object-center transition-all duration-300"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-[#060608] via-transparent to-black/30" />
 
@@ -186,20 +255,46 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   {product.categoryName || "MEN'S HOODIES"}
                 </span>
                 <span className="px-2.5 py-1 rounded-md bg-white text-[#060608] font-brand text-[10px] font-extrabold uppercase tracking-[0.18em] w-fit">
-                  KF ARCHIVE #{product.id}
+                  {selectedColour}
                 </span>
               </div>
 
-              {/* Bottom Brand Watermark */}
-              <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between">
+              {/* Bottom Brand Watermark & Quick Color Circles */}
+              <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between gap-2">
                 <img
                   src="/logo.png"
                   alt="KF"
                   className="h-6 w-auto object-contain brightness-125 opacity-90"
                 />
-                <span className="font-display text-[10px] uppercase tracking-[0.2em] text-white/80 bg-black/60 px-2.5 py-1 rounded-md border border-white/10">
-                  100% EGYPTIAN COMBED COTTON
-                </span>
+                {colorVariants.length > 1 && (
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/75 backdrop-blur-md border border-white/20">
+                    {colorVariants.map((variant) => {
+                      const active =
+                        variant.colour.toLowerCase() ===
+                        selectedColour.toLowerCase();
+                      return (
+                        <button
+                          key={variant.colour}
+                          type="button"
+                          onClick={() => handleColourChange(variant.colour)}
+                          title={variant.colour}
+                          aria-label={`Select color ${variant.colour}`}
+                          className={`w-5 h-5 rounded-full transition-all cursor-pointer ${
+                            active
+                              ? 'ring-2 ring-white ring-offset-2 ring-offset-[#060608] scale-110'
+                              : 'opacity-75 hover:opacity-100 hover:scale-105 border border-white/30'
+                          }`}
+                          style={{
+                            backgroundColor: resolveColourHex(
+                              variant.colour,
+                              variant.colorHex
+                            ),
+                          }}
+                        />
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -229,32 +324,55 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                     'Engineered with heavyweight brushed Egyptian fleece, drop-shoulder boxy streetwear proportions, and reinforced twin-needle stitching.'}
                 </p>
 
-                {/* 1. COLORWAY SELECTOR */}
+                {/* 1. COLORWAY SELECTOR WITH COLORED CIRCLES */}
                 <div>
-                  <div className="flex items-center justify-between mb-2.5">
+                  <div className="flex items-center justify-between mb-3">
                     <span className="font-display text-[11px] font-bold uppercase tracking-[0.2em] text-[#B4B6C2]">
-                      SELECT COLORWAY
+                      SELECT COLORWAY ({colorVariants.length})
                     </span>
-                    <span className="font-brand text-[11px] font-bold uppercase text-white">
+                    <span className="inline-flex items-center gap-2 font-brand text-[11px] font-bold uppercase text-white">
+                      <span
+                        className="w-3 h-3 rounded-full border border-white/40 inline-block"
+                        style={{
+                          backgroundColor: resolveColourHex(
+                            selectedColour,
+                            activeColorVariant?.colorHex
+                          ),
+                        }}
+                      />
                       {selectedColour}
                     </span>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    {availableColours.map((colour) => {
+                  <div className="flex flex-wrap items-center gap-3">
+                    {colorVariants.map((variant) => {
                       const active =
-                        colour.toLowerCase() === selectedColour.toLowerCase();
+                        variant.colour.toLowerCase() ===
+                        selectedColour.toLowerCase();
+                      const swatchHex = resolveColourHex(
+                        variant.colour,
+                        variant.colorHex
+                      );
                       return (
                         <button
-                          key={colour}
+                          key={variant.colour}
                           type="button"
-                          onClick={() => handleColourChange(colour)}
-                          className={`px-3.5 py-2 rounded-xl font-display text-xs font-bold uppercase tracking-[0.14em] border transition cursor-pointer ${
+                          onClick={() => handleColourChange(variant.colour)}
+                          title={variant.colour}
+                          className={`group flex items-center gap-2.5 pl-2 pr-3.5 py-1.5 rounded-full font-display text-xs font-bold uppercase tracking-[0.12em] border transition-all cursor-pointer ${
                             active
-                              ? 'bg-white text-[#060608] border-white shadow-[0_0_20px_rgba(255,255,255,0.25)]'
-                              : 'bg-white/[0.03] text-[#B4B6C2] border-white/[0.1] hover:border-white/40 hover:text-white'
+                              ? 'bg-white text-[#060608] border-white shadow-[0_0_20px_rgba(255,255,255,0.28)]'
+                              : 'bg-white/[0.04] text-[#B4B6C2] border-white/[0.14] hover:border-white/45 hover:text-white'
                           }`}
                         >
-                          {colour}
+                          <span
+                            className={`w-5 h-5 rounded-full shrink-0 transition-transform ${
+                              active
+                                ? 'ring-2 ring-[#060608] scale-105'
+                                : 'border border-white/30 group-hover:scale-110'
+                            }`}
+                            style={{ backgroundColor: swatchHex }}
+                          />
+                          <span>{variant.colour}</span>
                         </button>
                       );
                     })}
@@ -264,9 +382,19 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 {/* 2. SIZE & LIVE STOCK MATRIX */}
                 <div>
                   <div className="flex items-center justify-between mb-2.5">
-                    <span className="font-display text-[11px] font-bold uppercase tracking-[0.2em] text-[#B4B6C2]">
-                      SELECT SIZE (OVERSIZED FIT)
-                    </span>
+                    <div className="flex items-center gap-3">
+                      <span className="font-display text-[11px] font-bold uppercase tracking-[0.2em] text-[#B4B6C2]">
+                        SELECT SIZE (OVERSIZED FIT)
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setShowSizeGuide((prev) => !prev)}
+                        className="inline-flex items-center gap-1 text-[10px] font-display font-bold uppercase tracking-[0.16em] text-amber-300 hover:text-white underline underline-offset-4 transition cursor-pointer"
+                      >
+                        <Ruler className="w-3 h-3" />
+                        <span>{showSizeGuide ? 'HIDE SIZE GUIDE' : '500GSM SIZE GUIDE'}</span>
+                      </button>
+                    </div>
                     <span
                       className={`font-display text-[11px] font-bold uppercase tracking-wider ${
                         maxAvailable > 5
@@ -281,6 +409,59 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                         : 'OUT OF STOCK'}
                     </span>
                   </div>
+
+                  {showSizeGuide && (
+                    <div className="mb-3 p-3.5 rounded-xl bg-black/60 border border-white/15 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-display text-[10px] font-extrabold uppercase tracking-[0.18em] text-white">
+                          500GSM BOXY DROP-SHOULDER FIT SPECS
+                        </span>
+                        <span className="text-[10px] text-[#9EA2B3]">
+                          True to streetwear size
+                        </span>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left text-[10px] border-collapse">
+                          <thead>
+                            <tr className="border-b border-white/10 text-[#8A8D9F] font-display uppercase tracking-wider">
+                              <th className="py-1.5 pr-2">SIZE</th>
+                              <th className="py-1.5 pr-2">CHEST</th>
+                              <th className="py-1.5 pr-2">LENGTH</th>
+                              <th className="py-1.5 pr-2">SHOULDER</th>
+                              <th className="py-1.5">HEIGHT / WEIGHT</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-white/[0.06] text-white">
+                            {KHALIFA_SIZE_CHART.map((row) => (
+                              <tr
+                                key={row.size}
+                                className={
+                                  row.size.toLowerCase() === selectedSize.toLowerCase()
+                                    ? 'bg-white/10 font-bold text-amber-300'
+                                    : ''
+                                }
+                              >
+                                <td className="py-1.5 pr-2 font-brand">{row.size}</td>
+                                <td className="py-1.5 pr-2">{row.chest}</td>
+                                <td className="py-1.5 pr-2">{row.length}</td>
+                                <td className="py-1.5 pr-2">{row.shoulder}</td>
+                                <td className="py-1.5 text-[#B4B6C2]">{row.fit}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {maxAvailable > 0 && maxAvailable <= 5 && (
+                    <div className="mb-2.5 px-3 py-1.5 rounded-lg bg-amber-500/15 border border-amber-400/35 flex items-center gap-2 text-[10px] font-display font-bold uppercase tracking-[0.16em] text-amber-300">
+                      <Flame className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                      <span>
+                        HIGH DEMAND // ONLY {maxAvailable} LEFT IN {selectedColour} ({selectedSize})
+                      </span>
+                    </div>
+                  )}
 
                   {sizesForColour.length > 0 ? (
                     <div className="grid grid-cols-4 sm:grid-cols-5 gap-2.5">
@@ -355,18 +536,18 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 </div>
               </div>
 
-              {/* Add to Bag Button */}
-              <div className="pt-5 border-t border-white/[0.08]">
+              {/* Action Buttons: Add to Bag + Check Out Now */}
+              <div className="pt-5 border-t border-white/[0.08] space-y-2.5">
                 <button
                   type="button"
                   disabled={maxAvailable <= 0}
                   onClick={handleAdd}
-                  className={`w-full py-4 rounded-xl font-brand text-xs font-extrabold uppercase tracking-[0.22em] transition-all flex items-center justify-center gap-2.5 cursor-pointer ${
+                  className={`w-full py-3.5 rounded-xl font-brand text-xs font-extrabold uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2.5 cursor-pointer ${
                     addedFeedback
                       ? 'bg-emerald-400 text-[#060608] shadow-[0_0_30px_rgba(52,211,153,0.4)]'
                       : maxAvailable <= 0
                       ? 'bg-white/10 text-[#686B7A] cursor-not-allowed'
-                      : 'bg-gradient-to-r from-white via-[#E5E7EB] to-[#CBD5E1] text-[#060608] shadow-[0_10px_30px_-5px_rgba(255,255,255,0.25)] hover:shadow-[0_15px_35px_-5px_rgba(255,255,255,0.4)]'
+                      : 'bg-white/[0.07] hover:bg-white/[0.14] text-white border border-white/25'
                   }`}
                 >
                   {addedFeedback ? (
@@ -382,6 +563,22 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                       </span>
                     </>
                   )}
+                </button>
+
+                <button
+                  type="button"
+                  disabled={maxAvailable <= 0}
+                  onClick={handleCheckOutNowClick}
+                  className={`w-full py-4 rounded-xl font-brand text-xs font-extrabold uppercase tracking-[0.22em] transition-all flex items-center justify-center gap-2.5 cursor-pointer ${
+                    maxAvailable <= 0
+                      ? 'bg-white/10 text-[#686B7A] cursor-not-allowed'
+                      : 'bg-gradient-to-r from-white via-[#E5E7EB] to-[#CBD5E1] text-[#060608] shadow-[0_10px_30px_-5px_rgba(255,255,255,0.25)] hover:shadow-[0_15px_35px_-5px_rgba(255,255,255,0.4)]'
+                  }`}
+                >
+                  <span>
+                    CHECK OUT NOW — {(product.unitPrice * quantity).toLocaleString()} EGP
+                  </span>
+                  <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
             </div>

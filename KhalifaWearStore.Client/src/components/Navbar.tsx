@@ -4,11 +4,11 @@ import {
   User,
   Search,
   X,
-  Crown,
+  Truck,
 } from 'lucide-react';
 import type { AuthResponseDto } from '../services/authApi';
 
-export type ActivePage = 'home' | 'shop' | 'auth' | 'admin';
+export type ActivePage = 'home' | 'shop' | 'auth' | 'admin' | 'owner';
 
 interface NavbarProps {
   activePage: ActivePage;
@@ -16,6 +16,7 @@ interface NavbarProps {
   session: AuthResponseDto | null;
   bagCount: number;
   onOpenBag: () => void;
+  onOpenOrderTracker?: () => void;
   searchQuery: string;
   onSearchChange: (q: string) => void;
   onSearchSubmit: (e: React.FormEvent) => void;
@@ -27,6 +28,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   session,
   bagCount,
   onOpenBag,
+  onOpenOrderTracker,
   searchQuery,
   onSearchChange,
   onSearchSubmit,
@@ -38,17 +40,20 @@ export const Navbar: React.FC<NavbarProps> = ({
       {/* Top Minimal Editorial Utility Bar */}
       <div className="w-full bg-[#030304] border-b border-white/[0.06] py-2 px-4 sm:px-8">
         <div className="max-w-[1400px] mx-auto flex items-center justify-between text-[10px] font-display uppercase tracking-[0.22em] text-[#8E91A0]">
-          <span>FREE EXPRESS DELIVERY ON ORDERS ABOVE 1,500 EGP</span>
+          <span>
+            FREE EXPRESS DELIVERY ON ORDERS ABOVE 2,500 EGP • CODE:{' '}
+            <strong className="text-white">KHALIFA10</strong>
+          </span>
           <div className="hidden sm:flex items-center gap-5">
-            {session?.role === 'Admin' && (
+            {onOpenOrderTracker && (
               <>
                 <button
                   type="button"
-                  onClick={() => onNavigate('admin')}
-                  className="text-white font-bold hover:underline cursor-pointer flex items-center gap-1"
+                  onClick={onOpenOrderTracker}
+                  className="text-emerald-400 hover:text-white transition inline-flex items-center gap-1.5 cursor-pointer"
                 >
-                  <Crown className="w-3 h-3" />
-                  <span>ADMIN PORTAL</span>
+                  <Truck className="w-3 h-3" />
+                  <span>TRACK ORDER</span>
                 </button>
                 <span className="text-white/20">|</span>
               </>
@@ -114,20 +119,6 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             CATALOG
           </button>
-          {session?.role === 'Admin' && (
-            <button
-              type="button"
-              onClick={() => onNavigate('admin')}
-              className={`px-3 py-1.5 font-display text-[10px] font-bold uppercase tracking-[0.2em] transition cursor-pointer flex items-center gap-1.5 ${
-                activePage === 'admin'
-                  ? 'bg-white text-[#060608]'
-                  : 'bg-white/[0.08] text-white border border-white/25 hover:bg-white hover:text-[#060608]'
-              }`}
-            >
-              <Crown className="w-3 h-3" />
-              <span>ADMIN PORTAL</span>
-            </button>
-          )}
         </nav>
 
         {/* Mobile Left Menu Shortcut */}
@@ -146,15 +137,6 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             SHOP
           </button>
-          {session?.role === 'Admin' && (
-            <button
-              type="button"
-              onClick={() => onNavigate('admin')}
-              className="font-display text-[10px] font-bold uppercase tracking-wider px-2 py-1 bg-white text-[#060608]"
-            >
-              ADMIN
-            </button>
-          )}
         </div>
 
         {/* Center: Pure KF Graphic Mark (No Text) */}
@@ -166,7 +148,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             aria-label="Khalifa Wear House Home"
           >
             <img
-              src="/kf-mark.png"
+              src="/kf-mark.svg"
               alt="KF"
               className="h-9 sm:h-11 w-auto object-contain transition-transform duration-500 group-hover:scale-108"
             />
@@ -208,6 +190,18 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <Search className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">SEARCH</span>
+            </button>
+          )}
+
+          {onOpenOrderTracker && (
+            <button
+              type="button"
+              onClick={onOpenOrderTracker}
+              className="inline-flex items-center gap-2 font-display text-[11px] font-semibold uppercase tracking-[0.2em] text-[#C8CAD4] hover:text-emerald-300 transition cursor-pointer"
+              title="Track Order & Order History"
+            >
+              <Truck className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="hidden lg:inline">TRACK</span>
             </button>
           )}
 

@@ -28,8 +28,8 @@ namespace KhalifaWearStore.Services.Specifications.StockSpec
             : base(s =>
                 s.ProductId == productId &&
                 !s.IsDeleted &&
-                s.Size.ToLower() == size.ToLower() &&
-                s.Colour.ToLower() == colour.ToLower())
+                s.Size.ToLower() == size.Trim().ToLower() &&
+                s.Colour.ToLower() == colour.Trim().ToLower())
         {
         }
     }

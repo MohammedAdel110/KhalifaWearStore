@@ -1,0 +1,247 @@
+[
+  {
+    "ThreadId": "guest:mvcb275u-n3f7lv",
+    "CustomerName": "KF Guest Shopper",
+    "CustomerEmail": null,
+    "LastMessageText": "sdfdsfsdf",
+    "LastMessageAt": "2026-10-17T11:20:37.7995959Z",
+    "UnreadForAdminCount": 0,
+    "UnreadForCustomerCount": 0,
+    "IsCustomerOnline": false,
+    "Messages": [
+      {
+        "Id": "93921e92015a4118bd5def7605867838",
+        "ThreadId": "guest:mvcb275u-n3f7lv",
+        "SenderRole": "Admin",
+        "SenderName": "KHALIFA SUPPORT",
+        "SenderEmail": null,
+        "Text": "Welcome to KHALIFA Support. How can we help you with your order, sizing, or drop inquiry today?",
+        "SentAt": "2026-10-17T11:20:35.1846269Z",
+        "IsReadByAdmin": true,
+        "IsReadByCustomer": true
+      },
+      {
+        "Id": "3f92a45db9424b168b4822565b1e9dcc",
+        "ThreadId": "guest:mvcb275u-n3f7lv",
+        "SenderRole": "Customer",
+        "SenderName": "KF Guest Shopper",
+        "SenderEmail": null,
+        "Text": "sdfdsfsdf",
+        "SentAt": "2026-10-17T11:20:37.7995959Z",
+        "IsReadByAdmin": true,
+        "IsReadByCustomer": true
+      }
+    ]
+  },
+  {
+    "ThreadId": "guest:mvcaxcsk-18ggnj",
+    "CustomerName": "KF Guest Shopper",
+    "CustomerEmail": null,
+    "LastMessageText": "gdgdfg",
+    "LastMessageAt": "2026-10-17T11:20:22.6856014Z",
+    "UnreadForAdminCount": 0,
+    "UnreadForCustomerCount": 0,
+    "IsCustomerOnline": true,
+    "Messages": [
+      {
+        "Id": "2d4b8ce004c44864a92487e28ec6f26e",
+        "ThreadId": "guest:mvcaxcsk-18ggnj",
+        "SenderRole": "Admin",
+        "SenderName": "KHALIFA SUPPORT",
+        "SenderEmail": null,
+        "Text": "Welcome to KHALIFA Support. How can we help you with your order, sizing, or drop inquiry today?",
+        "SentAt": "2026-10-17T11:16:49.0962513Z",
+        "IsReadByAdmin": true,
+        "IsReadByCustomer": true
+      },
+      {
+        "Id": "e53c367afe02448f99f8663d319be4a8",
+        "ThreadId": "guest:mvcaxcsk-18ggnj",
+        "SenderRole": "Customer",
+        "SenderName": "KF Guest Shopper",
+        "SenderEmail": null,
+        "Text": "dfdf",
+        "SentAt": "2026-10-17T11:20:04.9159455Z",
+        "IsReadByAdmin": true,
+        "IsReadByCustomer": true
+      },
+      {
+        "Id": "8f7b5c07135447b8af6a715743fdd6c5",
+        "ThreadId": "guest:mvcaxcsk-18ggnj",
+        "SenderRole": "Admin",
+        "SenderName": "Mohamed Khalifa",
+        "SenderEmail": null,
+        "Text": "dgdgdfg",
+        "SentAt": "2026-10-17T11:20:13.8449947Z",
+        "IsReadByAdmin": true,
+        "IsReadByCustomer": true
+      },
+      {
+        "Id": "806a50a1b12b4aaf9c1ea7ae8adbc27f",
+        "ThreadId": "guest:mvcaxcsk-18ggnj",
+        "SenderRole": "Customer",
+        "SenderName": "KF Guest Shopper",
+        "SenderEmail": null,
+        "Text": "dgdfgdfg",
+        "SentAt": "2026-10-17T11:20:18.3269197Z",
+        "IsReadByAdmin": true,
+        "IsReadByCustomer": true
+      },
+      {
+        "Id": "2ada1a6557704949bdf9068b8e10f941",
+        "ThreadId": "guest:mvcaxcsk-18ggnj",
+        "SenderRole": "Admin",
+        "SenderName": "Mohamed Khalifa",
+        "SenderEmail": null,
+        "Text": "gdgdfg",
+        "SentAt": "2026-10-17T11:20:22.6856014Z",
+        "IsReadByAdmin": true,
+        "IsReadByCustomer": true
+      }
+    ]
+  },
+  {
+    "ThreadId": "user:user1@gmail.com",
+    "CustomerName": "User1 1",
+    "CustomerEmail": "User1@gmail.com",
+    "LastMessageText": "ggg",
+    "LastMessageAt": "2026-10-17T11:19:50.7402156Z",
+    "UnreadForAdminCount": 0,
+    "UnreadForCustomerCount": 1,
+    "IsCustomerOnline": false,
+    "Messages": [
+      {
+        "Id": "615ed7f29b9d439a816e347cfe098dde",
+        "ThreadId": "user:user1@gmail.com",
+        "SenderRole": "Admin",
+        "SenderName": "KHALIFA SUPPORT",
+        "SenderEmail": null,
+        "Text": "Welcome to KHALIFA Support. How can we help you with your order, sizing, or drop inquiry today?",
+        "SentAt": "2026-10-17T10:23:22.8536411Z",
+        "IsReadByAdmin": true,
+        "IsReadByCustomer": true
+      },
+      {
+        "Id": "374d3499701e48b6b9361e3a0a48faba",
+        "ThreadId": "user:user1@gmail.com",
+        "SenderRole": "Customer",
+        "SenderName": "User1 1",
+        "SenderEmail": "User1@gmail.com",
+        "Text": "\u0643\u0627\u0646 \u0639\u0646\u062F\u064A \u0633\u0624\u0627\u0644 \u0644\u0648 \u0633\u0645\u062D\u062A",
+        "SentAt": "2026-10-17T10:31:15.1672491Z",
+        "IsReadByAdmin": true,
+        "IsReadByCustomer": true
+      },
+      {
+        "Id": "bf96d778bfa3407890d5e9ca5f2d6fd8",
+        "ThreadId": "user:user1@gmail.com",
+        "SenderRole": "Admin",
+        "SenderName": "Test3 aa",
+        "SenderEmail": null,
+        "Text": "\u0627\u064A \u0645\u0634\u0643\u0644\u062A\u0643 \u061F",
+        "SentAt": "2026-10-17T10:31:28.3492343Z",
+        "IsReadByAdmin": true,
+        "IsReadByCustomer": true
+      },
+      {
+        "Id": "ddbda14b4b2b4bc4afa2f126fc9260ef",
+        "ThreadId": "user:user1@gmail.com",
+        "SenderRole": "Customer",
+        "SenderName": "User1 1",
+        "SenderEmail": "User1@gmail.com",
+        "Text": "\u0643\u0646\u062A \u0645\u062D\u062A\u0627\u062C \u062C\u062F\u0648\u0644 \u0627\u0644\u0645\u0642\u0627\u0633\u0627\u062A",
+        "SentAt": "2026-10-17T10:31:44.9846553Z",
+        "IsReadByAdmin": true,
+        "IsReadByCustomer": true
+      },
+      {
+        "Id": "d5713e56b53b4963a50ecc1907924e0d",
+        "ThreadId": "user:user1@gmail.com",
+        "SenderRole": "Admin",
+        "SenderName": "Test3 aa",
+        "SenderEmail": null,
+        "Text": "\u0644\u0633\u0627 \u0645\u0646\u0632\u0644\u0634 \u0628\u0633 \u0645\u0645\u0643\u0646 \u062A\u0642\u0648\u0644 \u0648\u0632\u0646\u0643 \u0648\u0637\u0648\u0644 \u0648\u0627\u0631\u0634\u062D\u0644\u0643 \u0645\u0642\u0627\u0633",
+        "SentAt": "2026-10-17T10:31:58.0106274Z",
+        "IsReadByAdmin": true,
+        "IsReadByCustomer": true
+      },
+      {
+        "Id": "8e9c494198f34212b51f6c8c860e1466",
+        "ThreadId": "user:user1@gmail.com",
+        "SenderRole": "Customer",
+        "SenderName": "User1 1",
+        "SenderEmail": "User1@gmail.com",
+        "Text": "\u0648\u0632\u0646\u064A 20 \u0648\u0637\u0648\u0644\u064A 100",
+        "SentAt": "2026-10-17T10:32:04.245921Z",
+        "IsReadByAdmin": true,
+        "IsReadByCustomer": true
+      },
+      {
+        "Id": "d7a86da8ebdb49d281cb9e0268d8135f",
+        "ThreadId": "user:user1@gmail.com",
+        "SenderRole": "Admin",
+        "SenderName": "Test3 aa",
+        "SenderEmail": null,
+        "Text": "\u064A\u0628\u0642\u064A \u0639\u0644\u064A\u0643 \u0648\u0639\u0644\u064A \u0627\u0644\u0628\u0627\u062A\u0648\u0646 \u0633\u0627\u0644\u064A\u0629 \u0628\u0633",
+        "SentAt": "2026-10-17T10:32:11.8988763Z",
+        "IsReadByAdmin": true,
+        "IsReadByCustomer": true
+      },
+      {
+        "Id": "7b34e931523b4af1befece97559ed818",
+        "ThreadId": "user:user1@gmail.com",
+        "SenderRole": "Customer",
+        "SenderName": "User1 1",
+        "SenderEmail": "User1@gmail.com",
+        "Text": "\u062A\u0645\u0627\u0645 \u0634\u0643\u0631\u0627",
+        "SentAt": "2026-10-17T10:32:45.6638809Z",
+        "IsReadByAdmin": true,
+        "IsReadByCustomer": true
+      },
+      {
+        "Id": "785e7ab0d7ac48c48e706ae22625f98b",
+        "ThreadId": "user:user1@gmail.com",
+        "SenderRole": "Admin",
+        "SenderName": "Test3 aa",
+        "SenderEmail": null,
+        "Text": "\u062D\u0628\u064A\u0628\u064A",
+        "SentAt": "2026-10-17T10:32:49.1502249Z",
+        "IsReadByAdmin": true,
+        "IsReadByCustomer": true
+      },
+      {
+        "Id": "0dd9c82e56f24f52bd7269d396eafe14",
+        "ThreadId": "user:user1@gmail.com",
+        "SenderRole": "Admin",
+        "SenderName": "Test3 aa",
+        "SenderEmail": null,
+        "Text": "Hello! Welcome to KHALIFA Concierge. How can I assist you today?",
+        "SentAt": "2026-10-17T10:32:52.0311695Z",
+        "IsReadByAdmin": true,
+        "IsReadByCustomer": true
+      },
+      {
+        "Id": "edf531fb62ee4539b014baf948fbdb66",
+        "ThreadId": "user:user1@gmail.com",
+        "SenderRole": "Admin",
+        "SenderName": "Test3 aa",
+        "SenderEmail": null,
+        "Text": "Your order is confirmed and being prepared for dispatch via Cash on Delivery.",
+        "SentAt": "2026-10-17T10:32:53.7484924Z",
+        "IsReadByAdmin": true,
+        "IsReadByCustomer": true
+      },
+      {
+        "Id": "3e63db46e8ac41a88462b8d5b47793a0",
+        "ThreadId": "user:user1@gmail.com",
+        "SenderRole": "Admin",
+        "SenderName": "Mohamed Khalifa",
+        "SenderEmail": null,
+        "Text": "ggg",
+        "SentAt": "2026-10-17T11:19:50.7402156Z",
+        "IsReadByAdmin": true,
+        "IsReadByCustomer": false
+      }
+    ]
+  }
+]

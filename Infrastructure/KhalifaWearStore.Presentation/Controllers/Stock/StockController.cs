@@ -13,7 +13,7 @@ namespace KhalifaWearStore.Presentation.Controllers.Stock
     public class StockController(IStockService stockService) : AppBaseController
     {
         [HttpGet]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Owner")]
         [ProducesResponseType(typeof(ApiResponse<PaginationResponse<StockDto>>), StatusCodes.Status200OK)]
         public async Task<ActionResult> GetAllStocks([FromQuery] StockQueryParams queryParams)
         {
@@ -31,7 +31,7 @@ namespace KhalifaWearStore.Presentation.Controllers.Stock
         }
 
         [HttpGet("{id:int}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Owner")]
         [ProducesResponseType(typeof(ApiResponse<StockDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
         public async Task<ActionResult> GetStockById([FromRoute] int id)
@@ -41,7 +41,7 @@ namespace KhalifaWearStore.Presentation.Controllers.Stock
         }
 
         [HttpPost]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Owner")]
         [ProducesResponseType(typeof(ApiResponse<StockDto>), StatusCodes.Status201Created)]
         [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
         public async Task<ActionResult> CreateStock([FromBody] CreateStockDto createDto)
@@ -51,7 +51,7 @@ namespace KhalifaWearStore.Presentation.Controllers.Stock
         }
 
         [HttpPut("{id:int}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Owner")]
         [ProducesResponseType(typeof(ApiResponse<StockDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
         public async Task<ActionResult> UpdateStock([FromRoute] int id, [FromBody] UpdateStockDto updateDto)
@@ -61,7 +61,7 @@ namespace KhalifaWearStore.Presentation.Controllers.Stock
         }
 
         [HttpDelete("{id:int}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Owner")]
         [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
         public async Task<ActionResult> DeleteStock([FromRoute] int id)

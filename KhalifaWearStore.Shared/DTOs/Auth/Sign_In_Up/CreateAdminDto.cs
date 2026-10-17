@@ -37,4 +37,13 @@ namespace KhalifaWearStore.Shared.DTOs.Auth.Sign_In_Up
         [Required]
         public string Password { get; set; } = default!;
     }
+
+    public class AdminAccountDto
+    {
+        public string Id { get; set; } = string.Empty;
+        public string FullName { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string PhoneNumber { get; set; } = string.Empty;
+        public string Role { get; set; } = "Admin";
+    }
 }

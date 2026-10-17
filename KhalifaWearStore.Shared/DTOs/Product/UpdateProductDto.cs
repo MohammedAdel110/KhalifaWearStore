@@ -30,5 +30,7 @@ namespace KhalifaWearStore.Shared.DTOs.Product
         public bool ProductAvailable { get; set; } = true;
 
         public IFormFile? ImageFile { get; set; }
+
+        public string? ColorVariantsJson { get; set; }
     }
 }

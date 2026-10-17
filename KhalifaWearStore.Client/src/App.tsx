@@ -8,7 +8,7 @@ import {
   ArrowRight,
   ShieldCheck,
 } from 'lucide-react';
-import type { AuthResponseDto } from './services/authApi';
+import { isJwtTokenExpired, type AuthResponseDto } from './services/authApi';
 import {
   fetchCategories,
   fetchProducts,
@@ -22,16 +22,77 @@ import { ShopCatalogView } from './components/ShopCatalogView';
 import { ProductDetailModal } from './components/ProductDetailModal';
 import { AuthView } from './components/AuthView';
 import { AdminPortalView } from './components/AdminPortalView';
+import { OwnerPortalView } from './components/OwnerPortalView';
+import { CheckoutModal } from './components/CheckoutModal';
+import { OrderTrackerModal } from './components/OrderTrackerModal';
+import { CustomerSupportChatWidget } from './components/CustomerSupportChatWidget';
+
+function resolvePageFromPath(pathname: string): ActivePage {
+  const clean = pathname.toLowerCase().replace(/\/+$/, '');
+  if (clean === '/owner') return 'owner';
+  if (clean === '/admin') return 'admin';
+  if (clean === '/shop') return 'shop';
+  if (clean === '/auth') return 'auth';
+  return 'home';
+}
 
 export function App() {
-  const [activePage, setActivePage] = useState<ActivePage>('home');
+  const [activePage, setActivePage] = useState<ActivePage>(() =>
+    resolvePageFromPath(window.location.pathname)
+  );
 
-  // Auth Session
-  const [session, setSession] = useState<AuthResponseDto | null>(() => {
-    const saved = localStorage.getItem('kf_auth_session');
+  // Sync browser back/forward navigation with activePage
+  useEffect(() => {
+    const onPopState = () => {
+      setActivePage(resolvePageFromPath(window.location.pathname));
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
+  // 1. Customer Session (Storefront / & /auth)
+  const [customerSession, setCustomerSession] = useState<AuthResponseDto | null>(() => {
+    const saved = localStorage.getItem('kf_customer_session');
     if (saved) {
       try {
-        return JSON.parse(saved) as AuthResponseDto;
+        const parsed = JSON.parse(saved) as AuthResponseDto;
+        if (parsed.role === 'Customer' && !isJwtTokenExpired(parsed.token)) {
+          return parsed;
+        }
+        localStorage.removeItem('kf_customer_session');
+        return null;
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  });
+
+  // 2. Owner Session (Standalone Owner Portal /owner)
+  const [ownerSession, setOwnerSession] = useState<AuthResponseDto | null>(() => {
+    const saved = localStorage.getItem('kf_owner_session');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved) as AuthResponseDto;
+        return parsed.role === 'Owner' ? parsed : null;
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  });
+
+  // 3. Sales Admin Session (Standalone Sales Admin Portal /admin)
+  const [adminSession, setAdminSession] = useState<AuthResponseDto | null>(() => {
+    const saved = localStorage.getItem('kf_admin_session');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved) as AuthResponseDto;
+        if (parsed.role === 'Admin' && !isJwtTokenExpired(parsed.token)) {
+          return parsed;
+        }
+        localStorage.removeItem('kf_admin_session');
+        return null;
       } catch {
         return null;
       }
@@ -56,8 +117,9 @@ export function App() {
 
   // Product Detail Modal State
   const [inspectProductId, setInspectProductId] = useState<number | null>(null);
+  const [inspectProductColour, setInspectProductColour] = useState<string | null>(null);
 
-  // Shopping Bag State
+  // Shopping Bag & Checkout State
   const [bag, setBag] = useState<BagItem[]>(() => {
     const saved = localStorage.getItem('kf_shopping_bag');
     if (saved) {
@@ -70,6 +132,10 @@ export function App() {
     return [];
   });
   const [isBagOpen, setIsBagOpen] = useState(false);
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [isOrderTrackerOpen, setIsOrderTrackerOpen] = useState(false);
+  const [pendingCheckout, setPendingCheckout] = useState(false);
+  const [directCheckoutItems, setDirectCheckoutItems] = useState<BagItem[] | null>(null);
 
   useEffect(() => {
     localStorage.setItem('kf_shopping_bag', JSON.stringify(bag));
@@ -130,12 +196,25 @@ export function App() {
       setSelectedCategoryId(categoryId);
     }
     setActivePage(page);
+    const targetPath =
+      page === 'owner'
+        ? '/owner'
+        : page === 'admin'
+        ? '/admin'
+        : page === 'shop'
+        ? '/shop'
+        : page === 'auth'
+        ? '/auth'
+        : '/';
+    if (window.location.pathname !== targetPath) {
+      window.history.pushState({}, '', targetPath);
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setActivePage('shop');
+    handleNavigate('shop');
   };
 
   const handleResetFilters = () => {
@@ -189,19 +268,59 @@ export function App() {
   const totalBagCount = bag.reduce((sum, i) => sum + i.quantity, 0);
   const bagSubtotal = bag.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0);
 
+  // 1. Dedicated Standalone Owner Portal (/owner) — completely separate from client storefront & admin portal
+  if (activePage === 'owner') {
+    return (
+      <OwnerPortalView
+        session={ownerSession}
+        onSessionChange={setOwnerSession}
+      />
+    );
+  }
+
+  // 2. Dedicated Standalone Sales Admin Portal (/admin) — completely separate from client storefront & owner portal
+  if (activePage === 'admin') {
+    return (
+      <>
+        <AdminPortalView
+          session={adminSession}
+          onSessionChange={setAdminSession}
+          categories={categories}
+          products={catalogProducts}
+          onRefreshStoreData={handleRefreshStoreData}
+          onInspectProduct={(id, colour) => {
+            setInspectProductId(id);
+            setInspectProductColour(colour ?? null);
+          }}
+        />
+        <ProductDetailModal
+          productId={inspectProductId}
+          initialColour={inspectProductColour}
+          onClose={() => {
+            setInspectProductId(null);
+            setInspectProductColour(null);
+          }}
+          onAddToBag={handleAddToBag}
+        />
+      </>
+    );
+  }
+
+  // 3. Public Customer Storefront (/, /shop, /auth) — exclusively for Customers
   return (
     <div className="min-h-screen w-full bg-[#060608] text-[#F4F4F6] flex flex-col justify-between relative">
-      {/* Global Streetwear Navigation Bar */}
+      {/* Global Streetwear Navigation Bar (Customer Storefront Only) */}
       <Navbar
         activePage={activePage}
         onNavigate={handleNavigate}
-        session={session}
+        session={customerSession}
         bagCount={totalBagCount}
         onOpenBag={() => setIsBagOpen(true)}
+        onOpenOrderTracker={() => setIsOrderTrackerOpen(true)}
         searchQuery={searchQuery}
         onSearchChange={(q) => {
           setSearchQuery(q);
-          if (activePage !== 'shop') setActivePage('shop');
+          if (activePage !== 'shop') handleNavigate('shop');
         }}
         onSearchSubmit={handleSearchSubmit}
       />
@@ -214,7 +333,10 @@ export function App() {
             featuredProducts={featuredProducts}
             loading={loadingHome}
             onExploreCatalog={(catId) => handleNavigate('shop', catId ?? null)}
-            onSelectProduct={(id) => setInspectProductId(id)}
+            onSelectProduct={(id, colour) => {
+              setInspectProductId(id);
+              setInspectProductColour(colour ?? null);
+            }}
           />
         )}
 
@@ -235,30 +357,41 @@ export function App() {
             sortBy={sortBy}
             onSortChange={setSortBy}
             onResetFilters={handleResetFilters}
-            onSelectProduct={(id) => setInspectProductId(id)}
-          />
-        )}
-
-        {activePage === 'admin' && (
-          <AdminPortalView
-            session={session}
-            categories={categories}
-            products={catalogProducts}
-            onRefreshStoreData={handleRefreshStoreData}
-            onInspectProduct={(id) => setInspectProductId(id)}
-            onGoToLogin={() => handleNavigate('auth')}
+            onSelectProduct={(id, colour) => {
+              setInspectProductId(id);
+              setInspectProductColour(colour ?? null);
+            }}
           />
         )}
 
         {activePage === 'auth' && (
           <AuthView
-            session={session}
-            onSessionChange={setSession}
-            onGoToShop={() =>
-              session?.role === 'Admin'
-                ? handleNavigate('admin')
-                : handleNavigate('shop', null)
-            }
+            session={customerSession}
+            onSessionChange={(newSession) => {
+              setCustomerSession(newSession);
+              if (
+                newSession &&
+                pendingCheckout &&
+                ((directCheckoutItems && directCheckoutItems.length > 0) || bag.length > 0)
+              ) {
+                setPendingCheckout(false);
+                handleNavigate('shop', null);
+                setIsCheckoutOpen(true);
+              }
+            }}
+            onGoToShop={() => {
+              if (
+                customerSession &&
+                pendingCheckout &&
+                ((directCheckoutItems && directCheckoutItems.length > 0) || bag.length > 0)
+              ) {
+                setPendingCheckout(false);
+                handleNavigate('shop', null);
+                setIsCheckoutOpen(true);
+                return;
+              }
+              handleNavigate('shop', null);
+            }}
           />
         )}
       </div>
@@ -266,8 +399,23 @@ export function App() {
       {/* Product Detail & Size/Color Stock Selector Modal */}
       <ProductDetailModal
         productId={inspectProductId}
-        onClose={() => setInspectProductId(null)}
+        initialColour={inspectProductColour}
+        onClose={() => {
+          setInspectProductId(null);
+          setInspectProductColour(null);
+        }}
         onAddToBag={handleAddToBag}
+        onCheckOutNow={(item) => {
+          setDirectCheckoutItems([item]);
+          setInspectProductId(null);
+          setInspectProductColour(null);
+          if (!customerSession) {
+            setPendingCheckout(true);
+            handleNavigate('auth');
+          } else {
+            setIsCheckoutOpen(true);
+          }
+        }}
       />
 
       {/* Slide-Out Shopping Bag Preview Drawer */}
@@ -388,14 +536,18 @@ export function App() {
                     type="button"
                     onClick={() => {
                       setIsBagOpen(false);
-                      if (!session) {
+                      setDirectCheckoutItems(null);
+                      if (!customerSession) {
+                        setPendingCheckout(true);
                         handleNavigate('auth');
+                      } else {
+                        setIsCheckoutOpen(true);
                       }
                     }}
                     className="w-full py-4 bg-white text-[#060608] font-display text-xs font-bold uppercase tracking-[0.2em] flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <span>
-                      {session ? 'PROCEED TO CHECKOUT' : 'SIGN IN TO CHECKOUT'}
+                      {customerSession ? 'PROCEED TO CHECKOUT' : 'SIGN IN TO CHECKOUT'}
                     </span>
                     <ArrowRight className="w-4 h-4" />
                   </button>
@@ -411,13 +563,71 @@ export function App() {
         </div>
       )}
 
+      {/* Checkout & Dispatch Modal */}
+      <CheckoutModal
+        isOpen={isCheckoutOpen}
+        onClose={() => {
+          setIsCheckoutOpen(false);
+          setDirectCheckoutItems(null);
+        }}
+        session={customerSession}
+        bag={directCheckoutItems ?? bag}
+        onUpdateQty={(stockId, delta) => {
+          if (directCheckoutItems) {
+            setDirectCheckoutItems((prev) =>
+              prev
+                ? prev
+                    .map((item) =>
+                      item.stockId === stockId
+                        ? {
+                            ...item,
+                            quantity: Math.min(item.maxStock, Math.max(1, item.quantity + delta)),
+                          }
+                        : item
+                    )
+                : null
+            );
+          } else {
+            handleUpdateBagQty(stockId, delta);
+          }
+        }}
+        onRemoveItem={(stockId) => {
+          if (directCheckoutItems) {
+            const next = directCheckoutItems.filter((item) => item.stockId !== stockId);
+            setDirectCheckoutItems(next.length > 0 ? next : null);
+            if (next.length === 0) setIsCheckoutOpen(false);
+          } else {
+            handleRemoveBagItem(stockId);
+          }
+        }}
+        onOrderSuccess={() => {
+          if (directCheckoutItems) {
+            setDirectCheckoutItems(null);
+          } else {
+            setBag([]);
+          }
+          handleRefreshStoreData();
+        }}
+        onRequireAuth={() => {
+          setPendingCheckout(true);
+          handleNavigate('auth');
+        }}
+      />
+
+      {/* Live Shipment Tracker & Customer Order History Modal */}
+      <OrderTrackerModal
+        isOpen={isOrderTrackerOpen}
+        onClose={() => setIsOrderTrackerOpen(false)}
+        session={customerSession}
+      />
+
       {/* Global Brand Footer */}
       {activePage !== 'auth' && (
         <footer className="border-t border-white/[0.08] bg-[#040406] py-12 px-4 sm:px-8">
           <div className="max-w-[1400px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
             <div className="flex items-center gap-5">
               <img
-                src="/kf-mark.png"
+                src="/kf-mark.svg"
                 alt="KF"
                 className="h-7 w-auto object-contain"
               />
@@ -431,6 +641,9 @@ export function App() {
           </div>
         </footer>
       )}
+
+      {/* Real-Time SignalR Customer Support Chat Widget */}
+      <CustomerSupportChatWidget session={customerSession} />
     </div>
   );
 }

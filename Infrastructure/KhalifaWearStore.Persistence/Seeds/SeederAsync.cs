@@ -22,6 +22,52 @@ namespace KhalifaWearStore.Persistence.Seeds
             }
         }
 
+        public static async Task SeedOwnerUserAsync(UserManager<ApplicationUser> userManager)
+        {
+            const string ownerEmail = "121mohamedadel121@gmail.com";
+            const string ownerPassword = "Dr7kaf7elkbeer@";
+            var ownerUser = await userManager.FindByEmailAsync(ownerEmail);
+
+            if (ownerUser == null)
+            {
+                ownerUser = new ApplicationUser
+                {
+                    UserName = ownerEmail.ToUpperInvariant(),
+                    Email = ownerEmail,
+                    FullName = "Mohamed Adel",
+                    Role = UserRole.Owner,
+                    EmailConfirmed = true
+                };
+
+                var result = await userManager.CreateAsync(ownerUser, ownerPassword);
+                if (result.Succeeded)
+                {
+                    await userManager.AddToRoleAsync(ownerUser, UserRole.Owner.ToString());
+                    await userManager.AddToRoleAsync(ownerUser, UserRole.Admin.ToString());
+                }
+            }
+            else
+            {
+                ownerUser.Role = UserRole.Owner;
+                ownerUser.EmailConfirmed = true;
+                await userManager.UpdateAsync(ownerUser);
+
+                if (!await userManager.IsInRoleAsync(ownerUser, UserRole.Owner.ToString()))
+                {
+                    await userManager.AddToRoleAsync(ownerUser, UserRole.Owner.ToString());
+                }
+                if (!await userManager.IsInRoleAsync(ownerUser, UserRole.Admin.ToString()))
+                {
+                    await userManager.AddToRoleAsync(ownerUser, UserRole.Admin.ToString());
+                }
+                if (!await userManager.CheckPasswordAsync(ownerUser, ownerPassword))
+                {
+                    var resetToken = await userManager.GeneratePasswordResetTokenAsync(ownerUser);
+                    await userManager.ResetPasswordAsync(ownerUser, resetToken, ownerPassword);
+                }
+            }
+        }
+
         public static async Task SeedAdminUserAsync(UserManager<ApplicationUser> userManager)
         {
             const string adminEmail = "admin@khalifawear.com";
@@ -114,202 +160,8 @@ namespace KhalifaWearStore.Persistence.Seeds
                 await context.SaveChangesAsync();
             }
 
-            // 3. Seed Products & Stock Variants
-            if (!await context.Products.AnyAsync())
-            {
-                var mensCategory = await context.Categories.FirstAsync(c => c.CategoryName == "Men's Wear");
-                var womensCategory = await context.Categories.FirstAsync(c => c.CategoryName == "Women's Wear");
-                var accessoriesCategory = await context.Categories.FirstAsync(c => c.CategoryName == "Footwear & Accessories");
-
-                var products = new List<Product>
-                {
-                    new()
-                    {
-                        ProductName = "Classic Oxford Cotton Shirt",
-                        ProductDescription = "Breathable 100% cotton tailored fit shirt suitable for formal and smart-casual occasions.",
-                        CategoryId = mensCategory.Id,
-                        UnitPrice = 850.00m,
-                        Colour = "Navy Blue",
-                        Size = "L",
-                        ProductAvailable = true,
-                        Image = "Images/Products/oxford-shirt-navy.jpg",
-                        Stocks = new List<Stock>
-                        {
-                            new() { Size = "M", Colour = "Navy Blue", QuantityInStock = 25 },
-                            new() { Size = "L", Colour = "Navy Blue", QuantityInStock = 40 },
-                            new() { Size = "XL", Colour = "White", QuantityInStock = 18 }
-                        }
-                    },
-                    new()
-                    {
-                        ProductName = "Slim Fit Chino Trousers",
-                        ProductDescription = "Stretch cotton-twill chino trousers with a modern tapered leg.",
-                        CategoryId = mensCategory.Id,
-                        UnitPrice = 1100.00m,
-                        Colour = "Beige",
-                        Size = "32",
-                        ProductAvailable = true,
-                        Image = "Images/Products/slim-chino-beige.jpg",
-                        Stocks = new List<Stock>
-                        {
-                            new() { Size = "30", Colour = "Beige", QuantityInStock = 15 },
-                            new() { Size = "32", Colour = "Beige", QuantityInStock = 30 },
-                            new() { Size = "34", Colour = "Olive", QuantityInStock = 20 }
-                        }
-                    },
-                    new()
-                    {
-                        ProductName = "Embroidered Linen Abaya",
-                        ProductDescription = "Lightweight premium linen abaya featuring handcrafted sleeve embroidery.",
-                        CategoryId = womensCategory.Id,
-                        UnitPrice = 2400.00m,
-                        Colour = "Black",
-                        Size = "M",
-                        ProductAvailable = true,
-                        Image = "Images/Products/linen-abaya-black.jpg",
-                        Stocks = new List<Stock>
-                        {
-                            new() { Size = "S", Colour = "Black", QuantityInStock = 12 },
-                            new() { Size = "M", Colour = "Black", QuantityInStock = 22 },
-                            new() { Size = "L", Colour = "Emerald", QuantityInStock = 10 }
-                        }
-                    },
-                    new()
-                    {
-                        ProductName = "Pleated Satin Midi Dress",
-                        ProductDescription = "Elegant pleated midi dress with adjustable waist belt.",
-                        CategoryId = womensCategory.Id,
-                        UnitPrice = 1750.00m,
-                        Colour = "Burgundy",
-                        Size = "S",
-                        ProductAvailable = true,
-                        Image = "Images/Products/satin-dress-burgundy.jpg",
-                        Stocks = new List<Stock>
-                        {
-                            new() { Size = "S", Colour = "Burgundy", QuantityInStock = 14 },
-                            new() { Size = "M", Colour = "Burgundy", QuantityInStock = 19 }
-                        }
-                    },
-                    new()
-                    {
-                        ProductName = "Handcrafted Leather Loafers",
-                        ProductDescription = "Full-grain calfskin leather loafers with cushioned insole.",
-                        CategoryId = accessoriesCategory.Id,
-                        UnitPrice = 1950.00m,
-                        Colour = "Dark Brown",
-                        Size = "42",
-                        ProductAvailable = true,
-                        Image = "Images/Products/leather-loafers-brown.jpg",
-                        Stocks = new List<Stock>
-                        {
-                            new() { Size = "41", Colour = "Dark Brown", QuantityInStock = 10 },
-                            new() { Size = "42", Colour = "Dark Brown", QuantityInStock = 16 },
-                            new() { Size = "43", Colour = "Black", QuantityInStock = 12 }
-                        }
-                    }
-                };
-
-                await context.Products.AddRangeAsync(products);
-                await context.SaveChangesAsync();
-            }
-
-            // 4. Seed Demo Orders & OrderDetails
-            if (!await context.Orders.AnyAsync())
-            {
-                var omar = await context.Customers.FirstOrDefaultAsync(c => c.Email == "omar.customer@khalifawear.com");
-                var sara = await context.Customers.FirstOrDefaultAsync(c => c.Email == "sara.customer@khalifawear.com");
-
-                var codPayment = await context.Payments.FirstOrDefaultAsync(p => p.PaymentType == PaymentType.CashOnDelivery);
-                var cardPayment = await context.Payments.FirstOrDefaultAsync(p => p.PaymentType == PaymentType.CreditCard);
-
-                var shirt = await context.Products.FirstOrDefaultAsync(p => p.ProductName == "Classic Oxford Cotton Shirt");
-                var chinos = await context.Products.FirstOrDefaultAsync(p => p.ProductName == "Slim Fit Chino Trousers");
-                var abaya = await context.Products.FirstOrDefaultAsync(p => p.ProductName == "Embroidered Linen Abaya");
-                var loafers = await context.Products.FirstOrDefaultAsync(p => p.ProductName == "Handcrafted Leather Loafers");
-
-                if (omar != null && sara != null && codPayment != null && cardPayment != null &&
-                    shirt != null && chinos != null && abaya != null && loafers != null)
-                {
-                    var demoOrders = new List<Order>
-                    {
-                        new()
-                        {
-                            CustomerId = omar.Id,
-                            PaymentId = cardPayment.Id,
-                            OrderDate = DateTime.UtcNow.AddDays(-3),
-                            Paid = true,
-                            PaymentDate = DateTime.UtcNow.AddDays(-3),
-                            CreatedBy = omar.ApplicationUserId,
-                            OrderDetails = new List<OrderDetail>
-                            {
-                                new()
-                                {
-                                    ProductId = shirt.Id,
-                                    Size = "L",
-                                    Colour = "Navy Blue",
-                                    Quantity = 2,
-                                    UnitPrice = shirt.UnitPrice,
-                                    Total = shirt.UnitPrice * 2
-                                },
-                                new()
-                                {
-                                    ProductId = chinos.Id,
-                                    Size = "32",
-                                    Colour = "Beige",
-                                    Quantity = 1,
-                                    UnitPrice = chinos.UnitPrice,
-                                    Total = chinos.UnitPrice
-                                }
-                            }
-                        },
-                        new()
-                        {
-                            CustomerId = sara.Id,
-                            PaymentId = codPayment.Id,
-                            OrderDate = DateTime.UtcNow.AddDays(-1),
-                            Paid = false,
-                            PaymentDate = null,
-                            CreatedBy = sara.ApplicationUserId,
-                            OrderDetails = new List<OrderDetail>
-                            {
-                                new()
-                                {
-                                    ProductId = abaya.Id,
-                                    Size = "M",
-                                    Colour = "Black",
-                                    Quantity = 1,
-                                    UnitPrice = abaya.UnitPrice,
-                                    Total = abaya.UnitPrice
-                                }
-                            }
-                        },
-                        new()
-                        {
-                            CustomerId = omar.Id,
-                            PaymentId = cardPayment.Id,
-                            OrderDate = DateTime.UtcNow.AddHours(-5),
-                            Paid = true,
-                            PaymentDate = DateTime.UtcNow.AddHours(-5),
-                            CreatedBy = omar.ApplicationUserId,
-                            OrderDetails = new List<OrderDetail>
-                            {
-                                new()
-                                {
-                                    ProductId = loafers.Id,
-                                    Size = "42",
-                                    Colour = "Dark Brown",
-                                    Quantity = 1,
-                                    UnitPrice = loafers.UnitPrice,
-                                    Total = loafers.UnitPrice
-                                }
-                            }
-                        }
-                    };
-
-                    await context.Orders.AddRangeAsync(demoOrders);
-                    await context.SaveChangesAsync();
-                }
-            }
+            // Products, stock variants and demo orders are intentionally NOT seeded.
+            // The catalog is managed via the Admin Portal / real product data only.
         }
     }
 }

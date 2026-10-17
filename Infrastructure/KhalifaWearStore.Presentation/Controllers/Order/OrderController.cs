@@ -27,7 +27,7 @@ namespace KhalifaWearStore.Presentation.Controllers.Order
         // =====================================================================
 
         [HttpPost]
-        [Authorize(Roles = "Customer")]
+        [Authorize]
         [ProducesResponseType(typeof(ApiResponse<OrderDetailsDto>), StatusCodes.Status201Created)]
         [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
         public async Task<ActionResult> CreateOrder([FromBody] CreateOrderDto createDto)
@@ -38,7 +38,7 @@ namespace KhalifaWearStore.Presentation.Controllers.Order
         }
 
         [HttpGet("my")]
-        [Authorize(Roles = "Customer")]
+        [Authorize]
         [ProducesResponseType(typeof(ApiResponse<PaginationResponse<OrderDto>>), StatusCodes.Status200OK)]
         public async Task<ActionResult> GetMyOrders([FromQuery] OrderQueryParams queryParams)
         {
@@ -48,7 +48,7 @@ namespace KhalifaWearStore.Presentation.Controllers.Order
         }
 
         [HttpGet("my/{orderId:int}")]
-        [Authorize(Roles = "Customer")]
+        [Authorize]
         [ProducesResponseType(typeof(ApiResponse<OrderDetailsDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
         public async Task<ActionResult> GetMyOrderDetails([FromRoute] int orderId)
@@ -58,12 +58,22 @@ namespace KhalifaWearStore.Presentation.Controllers.Order
             return Success(result, "Order details retrieved successfully");
         }
 
+        [HttpGet("track")]
+        [AllowAnonymous]
+        [ProducesResponseType(typeof(ApiResponse<OrderDetailsDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+        public async Task<ActionResult> TrackOrderPublic([FromQuery] int orderId, [FromQuery] string phone)
+        {
+            var result = await orderService.TrackOrderPublicAsync(orderId, phone);
+            return Success(result, "Order tracking retrieved successfully");
+        }
+
         // =====================================================================
         // ADMIN OPERATIONS
         // =====================================================================
 
         [HttpGet("admin")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Owner")]
         [ProducesResponseType(typeof(ApiResponse<PaginationResponse<OrderDto>>), StatusCodes.Status200OK)]
         public async Task<ActionResult> GetAllOrders([FromQuery] OrderQueryParams queryParams)
         {
@@ -72,7 +82,7 @@ namespace KhalifaWearStore.Presentation.Controllers.Order
         }
 
         [HttpGet("admin/{orderId:int}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Owner")]
         [ProducesResponseType(typeof(ApiResponse<OrderDetailsDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
         public async Task<ActionResult> GetAdminOrderDetails([FromRoute] int orderId)
@@ -82,7 +92,7 @@ namespace KhalifaWearStore.Presentation.Controllers.Order
         }
 
         [HttpPatch("admin/{orderId:int}/payment-status")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Owner")]
         [ProducesResponseType(typeof(ApiResponse<OrderDetailsDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
         public async Task<ActionResult> UpdateOrderPaymentStatus(
@@ -91,6 +101,67 @@ namespace KhalifaWearStore.Presentation.Controllers.Order
         {
             var result = await orderService.UpdateOrderPaymentStatusAsync(orderId, updateDto);
             return Success(result, "Order payment status updated successfully");
+        }
+
+        [HttpPatch("admin/{orderId:int}/status")]
+        [Authorize(Roles = "Admin,Owner")]
+        [ProducesResponseType(typeof(ApiResponse<OrderDetailsDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+        public async Task<ActionResult> UpdateOrderStatus(
+            [FromRoute] int orderId,
+            [FromBody] UpdateOrderStatusDto updateDto)
+        {
+            var result = await orderService.UpdateOrderStatusAsync(orderId, updateDto);
+            return Success(result, "Order fulfillment status updated successfully");
+        }
+
+        // =====================================================================
+        // PROMO CODE OPERATIONS
+        // =====================================================================
+
+        [HttpGet("promo-codes")]
+        [AllowAnonymous]
+        [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<PromoCodeDto>>), StatusCodes.Status200OK)]
+        public async Task<ActionResult> GetActivePromoCodes()
+        {
+            var result = await orderService.GetActivePromoCodesAsync();
+            return Success(result, "Active promo codes retrieved successfully");
+        }
+
+        [HttpGet("admin/promo-codes")]
+        [Authorize(Roles = "Admin,Owner")]
+        [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<PromoCodeDto>>), StatusCodes.Status200OK)]
+        public async Task<ActionResult> GetAllPromoCodesAdmin()
+        {
+            var result = await orderService.GetAllPromoCodesAdminAsync();
+            return Success(result, "All promo codes retrieved successfully");
+        }
+
+        [HttpPost("admin/promo-codes")]
+        [Authorize(Roles = "Admin,Owner")]
+        [ProducesResponseType(typeof(ApiResponse<PromoCodeDto>), StatusCodes.Status201Created)]
+        public async Task<ActionResult> CreatePromoCode([FromBody] CreatePromoCodeDto createDto)
+        {
+            var result = await orderService.CreatePromoCodeAsync(createDto);
+            return Created(result, "Promo code saved successfully");
+        }
+
+        [HttpPatch("admin/promo-codes/{id:int}/toggle")]
+        [Authorize(Roles = "Admin,Owner")]
+        [ProducesResponseType(typeof(ApiResponse<PromoCodeDto>), StatusCodes.Status200OK)]
+        public async Task<ActionResult> TogglePromoCode([FromRoute] int id)
+        {
+            var result = await orderService.TogglePromoCodeAsync(id);
+            return Success(result, "Promo code status updated successfully");
+        }
+
+        [HttpDelete("admin/promo-codes/{id:int}")]
+        [Authorize(Roles = "Admin,Owner")]
+        [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status200OK)]
+        public async Task<ActionResult> DeletePromoCode([FromRoute] int id)
+        {
+            await orderService.DeletePromoCodeAsync(id);
+            return Success("Promo code deleted successfully");
         }
     }
 }

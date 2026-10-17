@@ -62,9 +62,19 @@ namespace KhalifaWearStore.Services.ServicesImplementation.Stock
             var existingSpec = new StockByProductVariantSpec(createDto.ProductId, createDto.Size, createDto.Colour);
             var existingVariant = await stockRepo.GetByIdWithSpecAsync(existingSpec);
             if (existingVariant != null)
-                throw new BadRequestCustomeException($"A stock record for Product {createDto.ProductId} with Size '{createDto.Size}' and Colour '{createDto.Colour}' already exists.");
+            {
+                existingVariant.QuantityInStock = createDto.QuantityInStock;
+                existingVariant.Size = createDto.Size.Trim();
+                existingVariant.Colour = createDto.Colour.Trim();
+                existingVariant.UpdatedAt = DateTime.UtcNow;
+                stockRepo.UpdateAsync(existingVariant);
+                await unitOfWork.SaveChangesAsync();
+                return await GetStockByIdAsync(existingVariant.Id);
+            }
 
             var stock = mapper.Map<StockEntity>(createDto);
+            stock.Size = createDto.Size.Trim();
+            stock.Colour = createDto.Colour.Trim();
             await stockRepo.AddAsync(stock);
             var saved = await unitOfWork.SaveChangesAsync();
             if (saved <= 0)

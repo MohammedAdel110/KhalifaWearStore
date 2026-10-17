@@ -28,9 +28,13 @@ namespace KhalifaWearStore.Persistence.Configurations.User_Profiles
                 .HasMaxLength(100)
                 .IsRequired();
 
+            builder.Property(x => x.Address)
+                .HasColumnName("address")
+                .HasMaxLength(500);
+
             builder.Property(x => x.Postcode)
                 .HasColumnName("postcode")
-                .HasMaxLength(20)
+                .HasMaxLength(100)
                 .IsRequired();
 
             builder.Property(x => x.PhoneNo)

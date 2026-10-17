@@ -1,10 +1,12 @@
 using System.Text.Json.Serialization;
+using KhalifaWearStore.Abstraction.IServices.Order;
 using KhalifaWearStore.Persistence.Extensions;
 using KhalifaWearStore.Persistence.ProgramService;
 using KhalifaWearStore.Presentation.Controllers;
 using KhalifaWearStore.Presentation.Extensions;
 using KhalifaWearStore.Services.AutoMapper;
 using KhalifaWearStore.Web.Extensions;
+using KhalifaWearStore.Web.Hubs;
 using KhalifaWearStore.Web.Middleware;
 
 namespace KhalifaWearStore.Web
@@ -25,6 +27,9 @@ namespace KhalifaWearStore.Web
             // 2. Application Services & Third-Party
             // ==========================================
             builder.Services.AddApplicationService();
+            builder.Services.AddScoped<IOrderNotificationService, SignalROrderNotificationService>();
+            builder.Services.AddSingleton<SupportChatStore>();
+            builder.Services.AddSignalR();
             builder.Services.InjectAutoMapperService();
             builder.Services.InjectRateLimiting();
 
@@ -79,6 +84,8 @@ namespace KhalifaWearStore.Web
             app.UseAuthorization();
 
             app.MapControllers();
+            app.MapHub<OrderNotificationHub>("/hubs/orders");
+            app.MapHub<SupportChatHub>("/hubs/chat");
 
             app.Run();
         }
