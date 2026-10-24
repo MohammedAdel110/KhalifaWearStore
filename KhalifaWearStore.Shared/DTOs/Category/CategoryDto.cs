@@ -5,6 +5,7 @@ namespace KhalifaWearStore.Shared.DTOs.Category
         public int Id { get; set; }
         public string CategoryName { get; set; } = string.Empty;
         public string? CategoryDescription { get; set; }
+        public string? Image { get; set; }
         public int ProductsCount { get; set; }
     }
 }

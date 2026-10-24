@@ -21,6 +21,9 @@ namespace KhalifaWearStore.Persistence.Configurations.CatalogConfig
             builder.Property(x => x.CategoryDescription)
                 .HasColumnName("categoryDescription")
                 .HasMaxLength(500);
+
+            builder.Property(x => x.Image)
+                .HasColumnName("image");
         }
     }
 }

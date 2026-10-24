@@ -30,7 +30,7 @@ namespace KhalifaWearStore.Presentation.Controllers.Payment
         }
 
         [HttpPost]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Owner")]
         [ProducesResponseType(typeof(ApiResponse<PaymentDto>), StatusCodes.Status201Created)]
         [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
         public async Task<ActionResult> CreatePayment([FromBody] CreatePaymentDto createDto)
@@ -40,7 +40,7 @@ namespace KhalifaWearStore.Presentation.Controllers.Payment
         }
 
         [HttpDelete("{id:int}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Owner")]
         [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
         public async Task<ActionResult> DeletePayment([FromRoute] int id)

@@ -10,6 +10,7 @@ namespace KhalifaWearStore.Shared.DTOs.Order
         public decimal DiscountValue { get; set; }
         public decimal MinOrderSubtotal { get; set; }
         public bool IsActive { get; set; } = true;
+        public bool IsFeaturedOnBanner { get; set; } = false;
         public string Description { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }
     }
@@ -27,5 +28,7 @@ namespace KhalifaWearStore.Shared.DTOs.Order
         public decimal MinOrderSubtotal { get; set; }
 
         public string? Description { get; set; }
+
+        public bool IsFeaturedOnBanner { get; set; } = false;
     }
 }

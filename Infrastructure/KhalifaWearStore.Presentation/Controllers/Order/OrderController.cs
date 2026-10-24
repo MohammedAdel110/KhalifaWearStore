@@ -155,6 +155,15 @@ namespace KhalifaWearStore.Presentation.Controllers.Order
             return Success(result, "Promo code status updated successfully");
         }
 
+        [HttpPatch("admin/promo-codes/{id:int}/feature")]
+        [Authorize(Roles = "Admin,Owner")]
+        [ProducesResponseType(typeof(ApiResponse<PromoCodeDto>), StatusCodes.Status200OK)]
+        public async Task<ActionResult> FeaturePromoCodeOnBanner([FromRoute] int id)
+        {
+            var result = await orderService.FeaturePromoCodeOnBannerAsync(id);
+            return Success(result, "Landing page promo banner updated successfully");
+        }
+
         [HttpDelete("admin/promo-codes/{id:int}")]
         [Authorize(Roles = "Admin,Owner")]
         [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status200OK)]

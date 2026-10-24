@@ -186,7 +186,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             onClick={() =>
               featuredProducts[0]
                 ? onSelectProduct(featuredProducts[0].id)
-                : onExploreCatalog(1)
+                : onExploreCatalog(categories[0]?.id ?? null)
             }
             className="absolute z-20 w-[230px] sm:w-[290px] lg:w-[330px] aspect-[3/4] overflow-hidden bg-[#0D0E12] border border-white/20 shadow-[0_35px_90px_rgba(0,0,0,0.95)] cursor-pointer group"
           >
@@ -199,10 +199,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
             <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between">
               <div>
                 <span className="block font-display text-[9px] uppercase tracking-[0.26em] text-white/70">
-                  ARCHIVE // 01
+                  {categories[0]?.categoryName ?? 'ARCHIVE // 01'}
                 </span>
                 <span className="block font-brand text-xs font-bold uppercase tracking-wider text-white mt-0.5">
-                  500 GSM OBSIDIAN HOODIE
+                  {featuredProducts[0]?.productName ?? '500 GSM OBSIDIAN HOODIE'}
                 </span>
               </div>
               <span className="w-7 h-7 rounded-full bg-white text-[#060608] flex items-center justify-center transition-transform duration-300 group-hover:rotate-45">
@@ -263,7 +263,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
             <button
               type="button"
-              onClick={() => onExploreCatalog(1)}
+              onClick={() => onExploreCatalog(categories[0]?.id ?? null)}
               className="py-2 font-display text-[11px] font-bold uppercase tracking-[0.22em] text-white border-b border-white hover:opacity-75 transition cursor-pointer"
             >
               EXPLORE NEW IN
@@ -284,61 +284,80 @@ export const HomeView: React.FC<HomeViewProps> = ({
       </section>
 
       {/* =====================================================================
-          2. 3-COLUMN DARK ARCHITECTURAL DIVISION BAR (Matches GAZU Reference)
+          2. DYNAMIC ARCHITECTURAL CATEGORY DIVISION BAR (Synced with Admin DB)
       ===================================================================== */}
-      <section className="w-full bg-[#0B0C0F] border-b border-white/[0.08]">
-        <div className="max-w-[1400px] mx-auto grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-white/[0.08]">
-          {[
-            {
-              id: categories[0]?.id ?? 1,
-              title: categories[0]?.categoryName ?? 'HEAVYWEIGHT HOODIES',
-              desc: '500 GSM oversized fleece silhouettes.',
-              cta: 'SHOP HOODIES',
-              img: 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?auto=format&fit=crop&w=500&q=80',
-            },
-            {
-              id: categories[1]?.id ?? 2,
-              title: categories[1]?.categoryName ?? 'TECH & ZIP HOODIES',
-              desc: 'Two-way matte chrome zip outerwear.',
-              cta: 'SHOP ZIP & TECH',
-              img: 'https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?auto=format&fit=crop&w=500&q=80',
-            },
-            {
-              id: categories[2]?.id ?? 3,
-              title: categories[2]?.categoryName ?? 'TEES & CARGOS',
-              desc: '300 GSM boxy tees & utility cargos.',
-              cta: 'SHOP ESSENTIALS',
-              img: 'https://images.unsplash.com/photo-1552374196-1ab2a1c593e8?auto=format&fit=crop&w=500&q=80',
-            },
-          ].map((item) => (
-            <div
-              key={item.title}
-              onClick={() => onExploreCatalog(item.id)}
-              className="group p-6 sm:p-8 lg:p-10 flex items-center gap-6 hover:bg-white/[0.02] transition cursor-pointer"
-            >
-              <div className="w-24 h-28 sm:w-28 sm:h-32 shrink-0 overflow-hidden bg-[#14151B]">
-                <img
-                  src={item.img}
-                  alt={item.title}
-                  className="w-full h-full object-cover object-center filter grayscale-[25%] transition-transform duration-500 group-hover:scale-108"
-                />
-              </div>
-              <div className="space-y-2">
-                <h3 className="font-brand text-sm sm:text-base font-bold uppercase tracking-wider text-white">
-                  {item.title}
-                </h3>
-                <p className="text-xs text-[#8E91A0] leading-relaxed">
-                  {item.desc}
-                </p>
-                <span className="inline-flex items-center gap-1.5 pt-2 font-display text-[10px] font-bold uppercase tracking-[0.22em] text-white border-b border-white/60 pb-0.5 group-hover:border-white">
-                  <span>{item.cta}</span>
-                  <ArrowRight className="w-3 h-3 transition-transform group-hover:translate-x-1" />
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
+      {categories.length > 0 && (
+        <section className="w-full bg-[#0B0C0F] border-b border-white/[0.08]">
+          <div
+            className={`max-w-[1400px] mx-auto grid grid-cols-1 ${
+              categories.length === 1
+                ? 'md:grid-cols-1'
+                : categories.length === 2
+                ? 'md:grid-cols-2'
+                : 'md:grid-cols-3'
+            } divide-y md:divide-y-0 md:divide-x divide-white/[0.08]`}
+          >
+            {categories.map((cat) => {
+              const matchingProduct = featuredProducts.find(
+                (p) =>
+                  p.categoryId === cat.id ||
+                  (p.categoryName &&
+                    p.categoryName.toLowerCase() ===
+                      cat.categoryName.toLowerCase())
+              );
+              const representativeImage = cat.image
+                ? resolveProductImage(cat.image, cat.id)
+                : matchingProduct
+                ? getProductColorVariants(matchingProduct)[0]?.image ||
+                  resolveProductImage(matchingProduct.image, matchingProduct.id)
+                : '/product-placeholder.svg';
+
+              return (
+                <div
+                  key={cat.id}
+                  onClick={() => onExploreCatalog(cat.id)}
+                  className="group p-6 sm:p-8 lg:p-10 flex items-center justify-between gap-6 hover:bg-white/[0.02] transition cursor-pointer"
+                >
+                  <div className="flex items-center gap-6">
+                    <div className="w-24 h-28 sm:w-28 sm:h-32 shrink-0 overflow-hidden bg-[#14151B] border border-white/[0.08]">
+                      <img
+                        src={representativeImage}
+                        alt={cat.categoryName}
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).src =
+                            '/product-placeholder.svg';
+                        }}
+                        className="w-full h-full object-cover object-center filter grayscale-[15%] transition-transform duration-500 group-hover:scale-108"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2.5 flex-wrap">
+                        <h3 className="font-brand text-sm sm:text-base font-bold uppercase tracking-wider text-white">
+                          {cat.categoryName}
+                        </h3>
+                        {typeof cat.productsCount === 'number' && (
+                          <span className="px-2 py-0.5 bg-white/[0.06] border border-white/[0.1] font-display text-[9px] font-bold uppercase tracking-[0.18em] text-[#C8CAD4]">
+                            {cat.productsCount}{' '}
+                            {cat.productsCount === 1 ? 'RELEASE' : 'RELEASES'}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-[#8E91A0] leading-relaxed max-w-md">
+                        {cat.categoryDescription ||
+                          '500 GSM heavyweight streetwear silhouettes.'}
+                      </p>
+                      <span className="inline-flex items-center gap-1.5 pt-2 font-display text-[10px] font-bold uppercase tracking-[0.22em] text-white border-b border-white/60 pb-0.5 group-hover:border-white">
+                        <span>SHOP {cat.categoryName}</span>
+                        <ArrowRight className="w-3 h-3 transition-transform group-hover:translate-x-1" />
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {/* =====================================================================
           3. ARCHITECTURAL BRAND IDENTITY BENTO GRID (Matches JENSMARK Reference)

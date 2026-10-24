@@ -1,5 +1,28 @@
 [
   {
+    "ThreadId": "user:omar.customer@khalifawear.com",
+    "CustomerName": "Omar Khalifa",
+    "CustomerEmail": "omar.customer@khalifawear.com",
+    "LastMessageText": "Conversation started",
+    "LastMessageAt": "2026-10-24T07:18:38.9443929Z",
+    "UnreadForAdminCount": 0,
+    "UnreadForCustomerCount": 0,
+    "IsCustomerOnline": false,
+    "Messages": [
+      {
+        "Id": "69de723b08d1490a8fbab34f65caf098",
+        "ThreadId": "user:omar.customer@khalifawear.com",
+        "SenderRole": "Admin",
+        "SenderName": "KHALIFA SUPPORT",
+        "SenderEmail": null,
+        "Text": "Welcome to KHALIFA Support. How can we help you with your order, sizing, or drop inquiry today?",
+        "SentAt": "2026-10-24T07:18:38.9444061Z",
+        "IsReadByAdmin": true,
+        "IsReadByCustomer": true
+      }
+    ]
+  },
+  {
     "ThreadId": "guest:mvcb275u-n3f7lv",
     "CustomerName": "KF Guest Shopper",
     "CustomerEmail": null,

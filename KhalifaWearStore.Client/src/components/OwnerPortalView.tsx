@@ -25,8 +25,12 @@ import {
   createAdminUser,
   fetchAdmins,
   deleteAdminUser,
+  validateRegistrationFields,
+  ApiValidationError,
   type AuthResponseDto,
   type AdminAccountDto,
+  type RegisterFieldErrors,
+  type RegisterFieldKey,
 } from '../services/authApi';
 
 interface OwnerPortalViewProps {
@@ -64,6 +68,47 @@ export const OwnerPortalView: React.FC<OwnerPortalViewProps> = ({
 
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [adminFieldErrors, setAdminFieldErrors] = useState<RegisterFieldErrors>({});
+  const [adminTouched, setAdminTouched] = useState<Partial<Record<RegisterFieldKey, boolean>>>({});
+
+  const updateAdminField = (
+    field: RegisterFieldKey,
+    value: string,
+    setter: React.Dispatch<React.SetStateAction<string>>
+  ) => {
+    setter(value);
+    const nextValues = {
+      firstName: field === 'firstName' ? value : firstName,
+      lastName: field === 'lastName' ? value : lastName,
+      email: field === 'email' ? value : adminEmail,
+      phoneNo: field === 'phoneNo' ? value : phoneNo,
+      city: field === 'city' ? value : city,
+      password: field === 'password' ? value : adminPassword,
+    };
+    if (adminTouched[field] || adminFieldErrors[field]) {
+      const computed = validateRegistrationFields(nextValues);
+      setAdminFieldErrors((prev) => ({
+        ...prev,
+        [field]: computed[field],
+      }));
+    }
+  };
+
+  const handleAdminBlur = (field: RegisterFieldKey) => {
+    setAdminTouched((prev) => ({ ...prev, [field]: true }));
+    const computed = validateRegistrationFields({
+      firstName,
+      lastName,
+      email: adminEmail,
+      phoneNo,
+      city,
+      password: adminPassword,
+    });
+    setAdminFieldErrors((prev) => ({
+      ...prev,
+      [field]: computed[field],
+    }));
+  };
 
   const loadAdmins = useCallback(async () => {
     if (!session || session.role !== 'Owner') return;
@@ -96,11 +141,6 @@ export const OwnerPortalView: React.FC<OwnerPortalViewProps> = ({
       { label: 'Symbol (@$!%*?&)', valid: /[^A-Za-z0-9]/.test(adminPassword) },
     ];
   }, [adminPassword]);
-
-  const passwordScore = useMemo(
-    () => passwordChecks.filter((c) => c.valid).length,
-    [passwordChecks]
-  );
 
   const handleOwnerLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -139,13 +179,30 @@ export const OwnerPortalView: React.FC<OwnerPortalViewProps> = ({
     setErrorMsg(null);
     setSuccessMsg(null);
 
-    if (passwordScore < 5) {
-      setErrorMsg(
-        'Please ensure the admin password meets all 5 security criteria.'
-      );
+    setAdminTouched({
+      firstName: true,
+      lastName: true,
+      email: true,
+      phoneNo: true,
+      city: true,
+      password: true,
+    });
+
+    const validationErrors = validateRegistrationFields({
+      firstName,
+      lastName,
+      email: adminEmail,
+      phoneNo,
+      city,
+      password: adminPassword,
+    });
+
+    if (Object.keys(validationErrors).length > 0) {
+      setAdminFieldErrors(validationErrors);
       return;
     }
 
+    setAdminFieldErrors({});
     setSubmittingAdmin(true);
     try {
       const created = await createAdminUser(
@@ -169,11 +226,17 @@ export const OwnerPortalView: React.FC<OwnerPortalViewProps> = ({
       setAdminEmail('');
       setPhoneNo('');
       setAdminPassword('');
+      setAdminFieldErrors({});
+      setAdminTouched({});
       await loadAdmins();
     } catch (err) {
-      setErrorMsg(
-        err instanceof Error ? err.message : 'Failed to create Sales Admin.'
-      );
+      if (err instanceof ApiValidationError && Object.keys(err.fieldErrors).length > 0) {
+        setAdminFieldErrors((prev) => ({ ...prev, ...err.fieldErrors }));
+      } else {
+        setErrorMsg(
+          err instanceof Error ? err.message : 'Failed to create Sales Admin.'
+        );
+      }
     } finally {
       setSubmittingAdmin(false);
     }
@@ -472,39 +535,81 @@ export const OwnerPortalView: React.FC<OwnerPortalViewProps> = ({
               </p>
             </div>
 
-            <form onSubmit={handleCreateSalesAdmin} className="space-y-4">
+            <form onSubmit={handleCreateSalesAdmin} noValidate className="space-y-4">
               <div className="grid grid-cols-2 gap-3.5">
                 <div>
                   <label className="block font-display text-[10px] font-bold uppercase tracking-[0.18em] text-[#9EA2B3] mb-1.5">
                     FIRST NAME
                   </label>
-                  <div className="flex items-center bg-[#11131A] border border-white/[0.12] focus-within:border-white">
-                    <User className="w-3.5 h-3.5 text-[#7D8091] ml-3 shrink-0" />
+                  <div
+                    className={`flex items-center bg-[#11131A] border transition ${
+                      adminFieldErrors.firstName
+                        ? 'border-red-500/60 bg-red-500/[0.04]'
+                        : 'border-white/[0.12] focus-within:border-white'
+                    }`}
+                  >
+                    <User
+                      className={`w-3.5 h-3.5 ml-3 shrink-0 ${
+                        adminFieldErrors.firstName ? 'text-red-400' : 'text-[#7D8091]'
+                      }`}
+                    />
                     <input
                       type="text"
-                      required
                       value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
+                      onChange={(e) =>
+                        updateAdminField('firstName', e.target.value, setFirstName)
+                      }
+                      onBlur={() => handleAdminBlur('firstName')}
                       placeholder="Ahmed"
                       className="w-full bg-transparent px-3 py-3 text-xs text-white outline-none"
                     />
                   </div>
+                  {adminFieldErrors.firstName && (
+                    <div
+                      role="alert"
+                      className="mt-1.5 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-500/[0.08] border border-red-500/25 text-red-300 text-[11px] font-medium leading-snug"
+                    >
+                      <AlertCircle className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                      <span>{adminFieldErrors.firstName}</span>
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label className="block font-display text-[10px] font-bold uppercase tracking-[0.18em] text-[#9EA2B3] mb-1.5">
                     LAST NAME
                   </label>
-                  <div className="flex items-center bg-[#11131A] border border-white/[0.12] focus-within:border-white">
-                    <User className="w-3.5 h-3.5 text-[#7D8091] ml-3 shrink-0" />
+                  <div
+                    className={`flex items-center bg-[#11131A] border transition ${
+                      adminFieldErrors.lastName
+                        ? 'border-red-500/60 bg-red-500/[0.04]'
+                        : 'border-white/[0.12] focus-within:border-white'
+                    }`}
+                  >
+                    <User
+                      className={`w-3.5 h-3.5 ml-3 shrink-0 ${
+                        adminFieldErrors.lastName ? 'text-red-400' : 'text-[#7D8091]'
+                      }`}
+                    />
                     <input
                       type="text"
-                      required
                       value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
+                      onChange={(e) =>
+                        updateAdminField('lastName', e.target.value, setLastName)
+                      }
+                      onBlur={() => handleAdminBlur('lastName')}
                       placeholder="Khalifa"
                       className="w-full bg-transparent px-3 py-3 text-xs text-white outline-none"
                     />
                   </div>
+                  {adminFieldErrors.lastName && (
+                    <div
+                      role="alert"
+                      className="mt-1.5 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-500/[0.08] border border-red-500/25 text-red-300 text-[11px] font-medium leading-snug"
+                    >
+                      <AlertCircle className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                      <span>{adminFieldErrors.lastName}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -512,17 +617,38 @@ export const OwnerPortalView: React.FC<OwnerPortalViewProps> = ({
                 <label className="block font-display text-[10px] font-bold uppercase tracking-[0.18em] text-[#9EA2B3] mb-1.5">
                   ADMIN EMAIL ADDRESS
                 </label>
-                <div className="flex items-center bg-[#11131A] border border-white/[0.12] focus-within:border-white">
-                  <Mail className="w-3.5 h-3.5 text-[#7D8091] ml-3 shrink-0" />
+                <div
+                  className={`flex items-center bg-[#11131A] border transition ${
+                    adminFieldErrors.email
+                      ? 'border-red-500/60 bg-red-500/[0.04]'
+                      : 'border-white/[0.12] focus-within:border-white'
+                  }`}
+                >
+                  <Mail
+                    className={`w-3.5 h-3.5 ml-3 shrink-0 ${
+                      adminFieldErrors.email ? 'text-red-400' : 'text-[#7D8091]'
+                    }`}
+                  />
                   <input
                     type="email"
-                    required
                     value={adminEmail}
-                    onChange={(e) => setAdminEmail(e.target.value)}
+                    onChange={(e) =>
+                      updateAdminField('email', e.target.value, setAdminEmail)
+                    }
+                    onBlur={() => handleAdminBlur('email')}
                     placeholder="sales.admin@khalifawear.com"
                     className="w-full bg-transparent px-3 py-3 text-xs text-white outline-none"
                   />
                 </div>
+                {adminFieldErrors.email && (
+                  <div
+                    role="alert"
+                    className="mt-1.5 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-500/[0.08] border border-red-500/25 text-red-300 text-[11px] font-medium leading-snug"
+                  >
+                    <AlertCircle className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                    <span>{adminFieldErrors.email}</span>
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3.5">
@@ -530,33 +656,75 @@ export const OwnerPortalView: React.FC<OwnerPortalViewProps> = ({
                   <label className="block font-display text-[10px] font-bold uppercase tracking-[0.18em] text-[#9EA2B3] mb-1.5">
                     PHONE NUMBER
                   </label>
-                  <div className="flex items-center bg-[#11131A] border border-white/[0.12] focus-within:border-white">
-                    <Phone className="w-3.5 h-3.5 text-[#7D8091] ml-3 shrink-0" />
+                  <div
+                    className={`flex items-center bg-[#11131A] border transition ${
+                      adminFieldErrors.phoneNo
+                        ? 'border-red-500/60 bg-red-500/[0.04]'
+                        : 'border-white/[0.12] focus-within:border-white'
+                    }`}
+                  >
+                    <Phone
+                      className={`w-3.5 h-3.5 ml-3 shrink-0 ${
+                        adminFieldErrors.phoneNo ? 'text-red-400' : 'text-[#7D8091]'
+                      }`}
+                    />
                     <input
                       type="tel"
-                      required
                       value={phoneNo}
-                      onChange={(e) => setPhoneNo(e.target.value)}
+                      onChange={(e) =>
+                        updateAdminField('phoneNo', e.target.value, setPhoneNo)
+                      }
+                      onBlur={() => handleAdminBlur('phoneNo')}
                       placeholder="01012345678"
                       className="w-full bg-transparent px-3 py-3 text-xs text-white outline-none"
                     />
                   </div>
+                  {adminFieldErrors.phoneNo && (
+                    <div
+                      role="alert"
+                      className="mt-1.5 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-500/[0.08] border border-red-500/25 text-red-300 text-[11px] font-medium leading-snug"
+                    >
+                      <AlertCircle className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                      <span>{adminFieldErrors.phoneNo}</span>
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label className="block font-display text-[10px] font-bold uppercase tracking-[0.18em] text-[#9EA2B3] mb-1.5">
                     REGION / CITY
                   </label>
-                  <div className="flex items-center bg-[#11131A] border border-white/[0.12] focus-within:border-white">
-                    <MapPin className="w-3.5 h-3.5 text-[#7D8091] ml-3 shrink-0" />
+                  <div
+                    className={`flex items-center bg-[#11131A] border transition ${
+                      adminFieldErrors.city
+                        ? 'border-red-500/60 bg-red-500/[0.04]'
+                        : 'border-white/[0.12] focus-within:border-white'
+                    }`}
+                  >
+                    <MapPin
+                      className={`w-3.5 h-3.5 ml-3 shrink-0 ${
+                        adminFieldErrors.city ? 'text-red-400' : 'text-[#7D8091]'
+                      }`}
+                    />
                     <input
                       type="text"
-                      required
                       value={city}
-                      onChange={(e) => setCity(e.target.value)}
+                      onChange={(e) =>
+                        updateAdminField('city', e.target.value, setCity)
+                      }
+                      onBlur={() => handleAdminBlur('city')}
                       placeholder="Cairo"
                       className="w-full bg-transparent px-3 py-3 text-xs text-white outline-none"
                     />
                   </div>
+                  {adminFieldErrors.city && (
+                    <div
+                      role="alert"
+                      className="mt-1.5 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-500/[0.08] border border-red-500/25 text-red-300 text-[11px] font-medium leading-snug"
+                    >
+                      <AlertCircle className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                      <span>{adminFieldErrors.city}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -564,13 +732,25 @@ export const OwnerPortalView: React.FC<OwnerPortalViewProps> = ({
                 <label className="block font-display text-[10px] font-bold uppercase tracking-[0.18em] text-[#9EA2B3] mb-1.5">
                   ASSIGN PASSWORD
                 </label>
-                <div className="flex items-center bg-[#11131A] border border-white/[0.12] focus-within:border-white">
-                  <Lock className="w-3.5 h-3.5 text-[#7D8091] ml-3 shrink-0" />
+                <div
+                  className={`flex items-center bg-[#11131A] border transition ${
+                    adminFieldErrors.password
+                      ? 'border-red-500/60 bg-red-500/[0.04]'
+                      : 'border-white/[0.12] focus-within:border-white'
+                  }`}
+                >
+                  <Lock
+                    className={`w-3.5 h-3.5 ml-3 shrink-0 ${
+                      adminFieldErrors.password ? 'text-red-400' : 'text-[#7D8091]'
+                    }`}
+                  />
                   <input
                     type={showAdminPassword ? 'text' : 'password'}
-                    required
                     value={adminPassword}
-                    onChange={(e) => setAdminPassword(e.target.value)}
+                    onChange={(e) =>
+                      updateAdminField('password', e.target.value, setAdminPassword)
+                    }
+                    onBlur={() => handleAdminBlur('password')}
                     placeholder="Strong password (e.g. Sales@2026)"
                     className="w-full bg-transparent px-3 py-3 text-xs text-white outline-none"
                   />
@@ -586,6 +766,15 @@ export const OwnerPortalView: React.FC<OwnerPortalViewProps> = ({
                     )}
                   </button>
                 </div>
+                {adminFieldErrors.password && (
+                  <div
+                    role="alert"
+                    className="mt-1.5 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-500/[0.08] border border-red-500/25 text-red-300 text-[11px] font-medium leading-snug"
+                  >
+                    <AlertCircle className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                    <span>{adminFieldErrors.password}</span>
+                  </div>
+                )}
 
                 <div className="flex flex-wrap gap-1.5 mt-2.5">
                   {passwordChecks.map((chk) => (

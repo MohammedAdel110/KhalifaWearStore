@@ -7,6 +7,7 @@ namespace KhalifaWearStore.Domain.Models.Orders
         public decimal DiscountValue { get; set; }
         public decimal MinOrderSubtotal { get; set; }
         public bool IsActive { get; set; } = true;
+        public bool IsFeaturedOnBanner { get; set; } = false;
         public string Description { get; set; } = string.Empty;
     }
 }

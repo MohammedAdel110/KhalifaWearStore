@@ -1,7 +1,9 @@
 using System.Net.Http.Headers;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using AutoMapper;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using KhalifaWearStore.Abstraction.IServices.Auth;
 using KhalifaWearStore.Abstraction.IServices.Token;
 using KhalifaWearStore.Domain.Exceptions;
@@ -18,11 +20,123 @@ namespace KhalifaWearStore.Services.ServicesImplementation.Auth
         IMapper mapper,
         ITokenService tokenService) : IAuthService
     {
+        private static bool IsDigitsOnlyName(string value)
+        {
+            var trimmed = value.Trim();
+            return Regex.IsMatch(trimmed, @"^[\d\s\W_]+$") || !Regex.IsMatch(trimmed, @"[\p{L}]");
+        }
+
+        private static List<string> ValidateRegistrationFields(
+            string? firstName,
+            string? lastName,
+            string? email,
+            string? phoneNo,
+            string? city,
+            string? password,
+            bool requireCity = true)
+        {
+            var errors = new List<string>();
+
+            var fName = firstName?.Trim() ?? string.Empty;
+            var lName = lastName?.Trim() ?? string.Empty;
+            var mail = email?.Trim() ?? string.Empty;
+            var phone = phoneNo?.Trim() ?? string.Empty;
+            var cityVal = city?.Trim() ?? string.Empty;
+            var pwd = password ?? string.Empty;
+
+            if (string.IsNullOrWhiteSpace(fName))
+                errors.Add("firstName:First name is required.");
+            else if (IsDigitsOnlyName(fName))
+                errors.Add("firstName:First name cannot consist solely of numbers.");
+
+            if (string.IsNullOrWhiteSpace(lName))
+                errors.Add("lastName:Last name is required.");
+            else if (IsDigitsOnlyName(lName))
+                errors.Add("lastName:Last name cannot consist solely of numbers.");
+
+            if (string.IsNullOrWhiteSpace(mail))
+                errors.Add("email:Email address is required.");
+            else if (!Regex.IsMatch(mail, @"^[^\s@]+@[^\s@]+\.[^\s@]+$"))
+                errors.Add("email:Please enter a valid email address.");
+
+            if (string.IsNullOrWhiteSpace(phone))
+                errors.Add("phoneNo:Phone number is required.");
+            else if (!phone.StartsWith("01", StringComparison.Ordinal))
+                errors.Add("phoneNo:Phone number must begin with the prefix '01'.");
+            else if (!Regex.IsMatch(phone, @"^01\d+$"))
+                errors.Add("phoneNo:Phone number must contain digits only and begin with '01'.");
+
+            if (requireCity)
+            {
+                if (string.IsNullOrWhiteSpace(cityVal))
+                    errors.Add("city:City / Governorate is required.");
+                else if (IsDigitsOnlyName(cityVal))
+                    errors.Add("city:City / Governorate cannot consist solely of numbers.");
+            }
+
+            if (string.IsNullOrWhiteSpace(pwd))
+                errors.Add("password:Password is required.");
+            else if (pwd.Length < 6 ||
+                     !Regex.IsMatch(pwd, "[A-Z]") ||
+                     !Regex.IsMatch(pwd, "[a-z]") ||
+                     !Regex.IsMatch(pwd, "[0-9]") ||
+                     !Regex.IsMatch(pwd, "[^A-Za-z0-9]"))
+                errors.Add("password:Password must be at least 6 characters and include uppercase, lowercase, number, and symbol.");
+
+            return errors;
+        }
+
         public async Task<AuthModelDto> RegisterAsync(RegisterDto registerDto)
         {
-            var existingUser = await userManager.FindByEmailAsync(registerDto.Email);
-            if (existingUser != null)
-                throw new BadRequestCustomeException("User with this email already exists.");
+            registerDto.FirstName = registerDto.FirstName?.Trim() ?? string.Empty;
+            registerDto.LastName = registerDto.LastName?.Trim() ?? string.Empty;
+            registerDto.Email = registerDto.Email?.Trim() ?? string.Empty;
+            registerDto.PhoneNo = registerDto.PhoneNo?.Trim() ?? string.Empty;
+            registerDto.City = registerDto.City?.Trim() ?? string.Empty;
+
+            var validationErrors = ValidateRegistrationFields(
+                registerDto.FirstName,
+                registerDto.LastName,
+                registerDto.Email,
+                registerDto.PhoneNo,
+                registerDto.City,
+                registerDto.Password,
+                requireCity: true);
+
+            if (!string.IsNullOrWhiteSpace(registerDto.Email) &&
+                !validationErrors.Any(e => e.StartsWith("email:", StringComparison.OrdinalIgnoreCase)))
+            {
+                var normalizedEmail = registerDto.Email.ToUpperInvariant();
+                var emailLower = registerDto.Email.ToLowerInvariant();
+                var existingUser = await userManager.FindByEmailAsync(registerDto.Email);
+                var emailInUse = existingUser != null || await userManager.Users.AnyAsync(u =>
+                    (u.NormalizedEmail != null && u.NormalizedEmail == normalizedEmail) ||
+                    (u.Email != null && u.Email.ToLower() == emailLower) ||
+                    (u.CustomerProfile != null && u.CustomerProfile.Email.ToLower() == emailLower));
+
+                if (emailInUse)
+                    validationErrors.Add("email:This email address is already registered.");
+            }
+
+            if (!string.IsNullOrWhiteSpace(registerDto.PhoneNo) &&
+                !validationErrors.Any(e => e.StartsWith("phoneNo:", StringComparison.OrdinalIgnoreCase)))
+            {
+                var phone = registerDto.PhoneNo;
+                var phoneInUse = await userManager.Users.AnyAsync(u =>
+                    u.PhoneNumber == phone ||
+                    (u.CustomerProfile != null && u.CustomerProfile.PhoneNo == phone));
+
+                if (phoneInUse)
+                    validationErrors.Add("phoneNo:This phone number is already registered.");
+            }
+
+            if (validationErrors.Count > 0)
+            {
+                var firstCleanMsg = validationErrors[0].Contains(':')
+                    ? validationErrors[0].Split(':', 2)[1]
+                    : validationErrors[0];
+                throw new BadRequestCustomeException(firstCleanMsg, validationErrors);
+            }
 
             var userForDb = mapper.Map<ApplicationUser>(registerDto);
             userForDb.Role = UserRole.Customer;
@@ -65,9 +179,55 @@ namespace KhalifaWearStore.Services.ServicesImplementation.Auth
 
         public async Task<AuthModelDto> CreateAdminAsync(CreateAdminDto createAdminDto)
         {
-            var existingUser = await userManager.FindByEmailAsync(createAdminDto.Email);
-            if (existingUser != null)
-                throw new BadRequestCustomeException("User with this email already exists.");
+            createAdminDto.FirstName = createAdminDto.FirstName?.Trim();
+            createAdminDto.LastName = createAdminDto.LastName?.Trim();
+            createAdminDto.Email = createAdminDto.Email?.Trim() ?? string.Empty;
+            createAdminDto.PhoneNo = createAdminDto.PhoneNo?.Trim();
+            createAdminDto.City = createAdminDto.City?.Trim() ?? string.Empty;
+
+            var validationErrors = ValidateRegistrationFields(
+                createAdminDto.FirstName,
+                createAdminDto.LastName,
+                createAdminDto.Email,
+                createAdminDto.PhoneNumber,
+                createAdminDto.City,
+                createAdminDto.Password,
+                requireCity: false);
+
+            if (!string.IsNullOrWhiteSpace(createAdminDto.Email) &&
+                !validationErrors.Any(e => e.StartsWith("email:", StringComparison.OrdinalIgnoreCase)))
+            {
+                var normalizedEmail = createAdminDto.Email.ToUpperInvariant();
+                var emailLower = createAdminDto.Email.ToLowerInvariant();
+                var existingUser = await userManager.FindByEmailAsync(createAdminDto.Email);
+                var emailInUse = existingUser != null || await userManager.Users.AnyAsync(u =>
+                    (u.NormalizedEmail != null && u.NormalizedEmail == normalizedEmail) ||
+                    (u.Email != null && u.Email.ToLower() == emailLower) ||
+                    (u.CustomerProfile != null && u.CustomerProfile.Email.ToLower() == emailLower));
+
+                if (emailInUse)
+                    validationErrors.Add("email:This email address is already registered.");
+            }
+
+            if (!string.IsNullOrWhiteSpace(createAdminDto.PhoneNumber) &&
+                !validationErrors.Any(e => e.StartsWith("phoneNo:", StringComparison.OrdinalIgnoreCase)))
+            {
+                var phone = createAdminDto.PhoneNumber.Trim();
+                var phoneInUse = await userManager.Users.AnyAsync(u =>
+                    u.PhoneNumber == phone ||
+                    (u.CustomerProfile != null && u.CustomerProfile.PhoneNo == phone));
+
+                if (phoneInUse)
+                    validationErrors.Add("phoneNo:This phone number is already registered.");
+            }
+
+            if (validationErrors.Count > 0)
+            {
+                var firstCleanMsg = validationErrors[0].Contains(':')
+                    ? validationErrors[0].Split(':', 2)[1]
+                    : validationErrors[0];
+                throw new BadRequestCustomeException(firstCleanMsg, validationErrors);
+            }
 
             var adminUser = new ApplicationUser
             {

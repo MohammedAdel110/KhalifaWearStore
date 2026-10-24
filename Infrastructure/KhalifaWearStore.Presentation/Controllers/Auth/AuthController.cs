@@ -14,6 +14,7 @@ namespace KhalifaWearStore.Presentation.Controllers.Auth
         // 1. Public Customer Registration (Always assigns Customer role)
         [HttpPost("register")]
         [AllowAnonymous]
+        [EnableRateLimiting("AuthPolicy")]
         [ProducesResponseType(typeof(ApiResponse<AuthModelDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
         public async Task<ActionResult> Register([FromBody] RegisterDto dto)
@@ -59,6 +60,7 @@ namespace KhalifaWearStore.Presentation.Controllers.Auth
         // 3. Login
         [HttpPost("login")]
         [AllowAnonymous]
+        [EnableRateLimiting("AuthPolicy")]
         [ProducesResponseType(typeof(ApiResponse<AuthModelDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
         public async Task<ActionResult> Login([FromBody] LoginDto dto)

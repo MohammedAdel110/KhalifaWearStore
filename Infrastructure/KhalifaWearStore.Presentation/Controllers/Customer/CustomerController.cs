@@ -45,7 +45,7 @@ namespace KhalifaWearStore.Presentation.Controllers.Customer
         }
 
         [HttpGet]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Owner")]
         [ProducesResponseType(typeof(ApiResponse<PaginationResponse<CustomerDto>>), StatusCodes.Status200OK)]
         public async Task<ActionResult> GetAllCustomers([FromQuery] CustomerQueryParams queryParams)
         {
@@ -54,7 +54,7 @@ namespace KhalifaWearStore.Presentation.Controllers.Customer
         }
 
         [HttpGet("{id:int}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Owner")]
         [ProducesResponseType(typeof(ApiResponse<CustomerDetailsDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
         public async Task<ActionResult> GetCustomerById([FromRoute] int id)

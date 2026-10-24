@@ -17,7 +17,11 @@ import {
 import {
   loginUser,
   registerCustomer,
+  validateRegistrationFields,
+  ApiValidationError,
   type AuthResponseDto,
+  type RegisterFieldErrors,
+  type RegisterFieldKey,
 } from '../services/authApi';
 
 type AuthMode = 'login' | 'register';
@@ -97,6 +101,9 @@ export const AuthView: React.FC<AuthViewProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [regErrors, setRegErrors] = useState<RegisterFieldErrors>({});
+  const [regTouched, setRegTouched] = useState<Partial<Record<RegisterFieldKey, boolean>>>({});
+  const [loginErrors, setLoginErrors] = useState<{ email?: string; password?: string }>({});
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -121,21 +128,80 @@ export const AuthView: React.FC<AuthViewProps> = ({
     [passwordChecks]
   );
 
+  const updateRegField = (
+    field: RegisterFieldKey,
+    value: string,
+    setter: React.Dispatch<React.SetStateAction<string>>
+  ) => {
+    setter(value);
+    const nextValues = {
+      firstName: field === 'firstName' ? value : firstName,
+      lastName: field === 'lastName' ? value : lastName,
+      email: field === 'email' ? value : regEmail,
+      phoneNo: field === 'phoneNo' ? value : phoneNo,
+      city: field === 'city' ? value : city,
+      password: field === 'password' ? value : regPassword,
+    };
+    if (regTouched[field] || regErrors[field]) {
+      const computed = validateRegistrationFields(nextValues);
+      setRegErrors((prev) => ({
+        ...prev,
+        [field]: computed[field],
+      }));
+    }
+  };
+
+  const handleRegBlur = (field: RegisterFieldKey) => {
+    setRegTouched((prev) => ({ ...prev, [field]: true }));
+    const computed = validateRegistrationFields({
+      firstName,
+      lastName,
+      email: regEmail,
+      phoneNo,
+      city,
+      password: regPassword,
+    });
+    setRegErrors((prev) => ({
+      ...prev,
+      [field]: computed[field],
+    }));
+  };
+
   const handleSwitchMode = (target: AuthMode) => {
     setMode(target);
     setErrorMessage(null);
     setSuccessMessage(null);
+    setRegErrors({});
+    setRegTouched({});
+    setLoginErrors({});
   };
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
     setSuccessMessage(null);
+
+    const nextLoginErrors: { email?: string; password?: string } = {};
+    const trimmedEmail = loginEmail.trim();
+    if (!trimmedEmail) {
+      nextLoginErrors.email = 'Email address is required.';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      nextLoginErrors.email = 'Please enter a valid email address.';
+    }
+    if (!loginPassword) {
+      nextLoginErrors.password = 'Password is required.';
+    }
+
+    if (Object.keys(nextLoginErrors).length > 0) {
+      setLoginErrors(nextLoginErrors);
+      return;
+    }
+    setLoginErrors({});
     setIsLoading(true);
 
     try {
       const data = await loginUser({
-        email: loginEmail.trim(),
+        email: trimmedEmail,
         password: loginPassword,
       });
       if (data.role !== 'Customer') {
@@ -161,13 +227,30 @@ export const AuthView: React.FC<AuthViewProps> = ({
     setErrorMessage(null);
     setSuccessMessage(null);
 
-    if (passwordStrengthScore < 5) {
-      setErrorMessage(
-        'Please ensure your password meets all 5 security criteria highlighted below.'
-      );
+    setRegTouched({
+      firstName: true,
+      lastName: true,
+      email: true,
+      phoneNo: true,
+      city: true,
+      password: true,
+    });
+
+    const validationErrors = validateRegistrationFields({
+      firstName,
+      lastName,
+      email: regEmail,
+      phoneNo,
+      city,
+      password: regPassword,
+    });
+
+    if (Object.keys(validationErrors).length > 0) {
+      setRegErrors(validationErrors);
       return;
     }
 
+    setRegErrors({});
     setIsLoading(true);
     try {
       const data = await registerCustomer({
@@ -182,7 +265,13 @@ export const AuthView: React.FC<AuthViewProps> = ({
       localStorage.setItem('kf_customer_session', JSON.stringify(data));
       setSuccessMessage(`Welcome to Khalifa Wear House, ${data.fullName}.`);
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : 'Unable to complete registration');
+      if (err instanceof ApiValidationError && Object.keys(err.fieldErrors).length > 0) {
+        setRegErrors((prev) => ({ ...prev, ...err.fieldErrors }));
+      } else {
+        setErrorMessage(
+          err instanceof Error ? err.message : 'Unable to complete registration'
+        );
+      }
     } finally {
       setIsLoading(false);
     }
@@ -409,22 +498,45 @@ export const AuthView: React.FC<AuthViewProps> = ({
               )}
 
               {mode === 'login' ? (
-                <form onSubmit={handleLoginSubmit} className="space-y-5">
+                <form onSubmit={handleLoginSubmit} noValidate className="space-y-5">
                   <div>
                     <label className="block font-display text-[11px] font-semibold uppercase tracking-[0.2em] text-[#B4B6C2] mb-2">
                       Email Address
                     </label>
-                    <div className="relative flex items-center rounded-xl bg-white/[0.03] border border-white/[0.1] transition-all silver-border-glow">
-                      <Mail className="w-4 h-4 text-[#7D8091] ml-4 shrink-0" />
+                    <div
+                      className={`relative flex items-center rounded-xl transition-all ${
+                        loginErrors.email
+                          ? 'bg-red-500/[0.04] border border-red-500/60 shadow-[0_0_16px_-4px_rgba(239,68,68,0.3)]'
+                          : 'bg-white/[0.03] border border-white/[0.1] silver-border-glow'
+                      }`}
+                    >
+                      <Mail
+                        className={`w-4 h-4 ml-4 shrink-0 transition-colors ${
+                          loginErrors.email ? 'text-red-400' : 'text-[#7D8091]'
+                        }`}
+                      />
                       <input
                         type="email"
-                        required
                         value={loginEmail}
-                        onChange={(e) => setLoginEmail(e.target.value)}
+                        onChange={(e) => {
+                          setLoginEmail(e.target.value);
+                          if (loginErrors.email) {
+                            setLoginErrors((prev) => ({ ...prev, email: undefined }));
+                          }
+                        }}
                         placeholder="member@khalifawear.com"
                         className="w-full bg-transparent px-3.5 py-3.5 text-sm text-white placeholder-[#555869] focus:outline-none"
                       />
                     </div>
+                    {loginErrors.email && (
+                      <div
+                        role="alert"
+                        className="mt-1.5 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-500/[0.08] border border-red-500/25 text-red-300 text-[11px] font-medium leading-snug"
+                      >
+                        <AlertCircle className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                        <span>{loginErrors.email}</span>
+                      </div>
+                    )}
                   </div>
 
                   <div>
@@ -436,13 +548,27 @@ export const AuthView: React.FC<AuthViewProps> = ({
                         Forgot password?
                       </span>
                     </div>
-                    <div className="relative flex items-center rounded-xl bg-white/[0.03] border border-white/[0.1] transition-all silver-border-glow">
-                      <Lock className="w-4 h-4 text-[#7D8091] ml-4 shrink-0" />
+                    <div
+                      className={`relative flex items-center rounded-xl transition-all ${
+                        loginErrors.password
+                          ? 'bg-red-500/[0.04] border border-red-500/60 shadow-[0_0_16px_-4px_rgba(239,68,68,0.3)]'
+                          : 'bg-white/[0.03] border border-white/[0.1] silver-border-glow'
+                      }`}
+                    >
+                      <Lock
+                        className={`w-4 h-4 ml-4 shrink-0 transition-colors ${
+                          loginErrors.password ? 'text-red-400' : 'text-[#7D8091]'
+                        }`}
+                      />
                       <input
                         type={showPassword ? 'text' : 'password'}
-                        required
                         value={loginPassword}
-                        onChange={(e) => setLoginPassword(e.target.value)}
+                        onChange={(e) => {
+                          setLoginPassword(e.target.value);
+                          if (loginErrors.password) {
+                            setLoginErrors((prev) => ({ ...prev, password: undefined }));
+                          }
+                        }}
                         placeholder="••••••••••••"
                         className="w-full bg-transparent px-3.5 py-3.5 text-sm text-white placeholder-[#555869] focus:outline-none"
                       />
@@ -459,6 +585,15 @@ export const AuthView: React.FC<AuthViewProps> = ({
                         )}
                       </button>
                     </div>
+                    {loginErrors.password && (
+                      <div
+                        role="alert"
+                        className="mt-1.5 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-500/[0.08] border border-red-500/25 text-red-300 text-[11px] font-medium leading-snug"
+                      >
+                        <AlertCircle className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                        <span>{loginErrors.password}</span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex items-center justify-between text-xs text-[#9EA2B3]">
@@ -483,40 +618,82 @@ export const AuthView: React.FC<AuthViewProps> = ({
                   </button>
                 </form>
               ) : (
-                <form onSubmit={handleRegisterSubmit} className="space-y-4">
+                <form onSubmit={handleRegisterSubmit} noValidate className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                     <div>
                       <label className="block font-display text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B4B6C2] mb-1.5">
                         First Name
                       </label>
-                      <div className="relative flex items-center rounded-xl bg-white/[0.03] border border-white/[0.1] transition-all silver-border-glow">
-                        <User className="w-4 h-4 text-[#7D8091] ml-3.5 shrink-0" />
+                      <div
+                        className={`relative flex items-center rounded-xl transition-all ${
+                          regErrors.firstName
+                            ? 'bg-red-500/[0.04] border border-red-500/60 shadow-[0_0_16px_-4px_rgba(239,68,68,0.3)]'
+                            : 'bg-white/[0.03] border border-white/[0.1] silver-border-glow'
+                        }`}
+                      >
+                        <User
+                          className={`w-4 h-4 ml-3.5 shrink-0 transition-colors ${
+                            regErrors.firstName ? 'text-red-400' : 'text-[#7D8091]'
+                          }`}
+                        />
                         <input
                           type="text"
-                          required
                           value={firstName}
-                          onChange={(e) => setFirstName(e.target.value)}
+                          onChange={(e) =>
+                            updateRegField('firstName', e.target.value, setFirstName)
+                          }
+                          onBlur={() => handleRegBlur('firstName')}
                           placeholder="Ziad"
                           className="w-full bg-transparent px-3 py-3 text-xs sm:text-sm text-white placeholder-[#555869] focus:outline-none"
                         />
                       </div>
+                      {regErrors.firstName && (
+                        <div
+                          role="alert"
+                          className="mt-1.5 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-500/[0.08] border border-red-500/25 text-red-300 text-[11px] font-medium leading-snug"
+                        >
+                          <AlertCircle className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                          <span>{regErrors.firstName}</span>
+                        </div>
+                      )}
                     </div>
 
                     <div>
                       <label className="block font-display text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B4B6C2] mb-1.5">
                         Last Name
                       </label>
-                      <div className="relative flex items-center rounded-xl bg-white/[0.03] border border-white/[0.1] transition-all silver-border-glow">
-                        <User className="w-4 h-4 text-[#7D8091] ml-3.5 shrink-0" />
+                      <div
+                        className={`relative flex items-center rounded-xl transition-all ${
+                          regErrors.lastName
+                            ? 'bg-red-500/[0.04] border border-red-500/60 shadow-[0_0_16px_-4px_rgba(239,68,68,0.3)]'
+                            : 'bg-white/[0.03] border border-white/[0.1] silver-border-glow'
+                        }`}
+                      >
+                        <User
+                          className={`w-4 h-4 ml-3.5 shrink-0 transition-colors ${
+                            regErrors.lastName ? 'text-red-400' : 'text-[#7D8091]'
+                          }`}
+                        />
                         <input
                           type="text"
-                          required
                           value={lastName}
-                          onChange={(e) => setLastName(e.target.value)}
+                          onChange={(e) =>
+                            updateRegField('lastName', e.target.value, setLastName)
+                          }
+                          onBlur={() => handleRegBlur('lastName')}
                           placeholder="Khalifa"
                           className="w-full bg-transparent px-3 py-3 text-xs sm:text-sm text-white placeholder-[#555869] focus:outline-none"
                         />
                       </div>
+                      {regErrors.lastName && (
+                        <div
+                          role="alert"
+                          className="mt-1.5 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-500/[0.08] border border-red-500/25 text-red-300 text-[11px] font-medium leading-snug"
+                        >
+                          <AlertCircle className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                          <span>{regErrors.lastName}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -525,34 +702,76 @@ export const AuthView: React.FC<AuthViewProps> = ({
                       <label className="block font-display text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B4B6C2] mb-1.5">
                         Email Address
                       </label>
-                      <div className="relative flex items-center rounded-xl bg-white/[0.03] border border-white/[0.1] transition-all silver-border-glow">
-                        <Mail className="w-4 h-4 text-[#7D8091] ml-3.5 shrink-0" />
+                      <div
+                        className={`relative flex items-center rounded-xl transition-all ${
+                          regErrors.email
+                            ? 'bg-red-500/[0.04] border border-red-500/60 shadow-[0_0_16px_-4px_rgba(239,68,68,0.3)]'
+                            : 'bg-white/[0.03] border border-white/[0.1] silver-border-glow'
+                        }`}
+                      >
+                        <Mail
+                          className={`w-4 h-4 ml-3.5 shrink-0 transition-colors ${
+                            regErrors.email ? 'text-red-400' : 'text-[#7D8091]'
+                          }`}
+                        />
                         <input
                           type="email"
-                          required
                           value={regEmail}
-                          onChange={(e) => setRegEmail(e.target.value)}
+                          onChange={(e) =>
+                            updateRegField('email', e.target.value, setRegEmail)
+                          }
+                          onBlur={() => handleRegBlur('email')}
                           placeholder="ziad@gmail.com"
                           className="w-full bg-transparent px-3 py-3 text-xs sm:text-sm text-white placeholder-[#555869] focus:outline-none"
                         />
                       </div>
+                      {regErrors.email && (
+                        <div
+                          role="alert"
+                          className="mt-1.5 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-500/[0.08] border border-red-500/25 text-red-300 text-[11px] font-medium leading-snug"
+                        >
+                          <AlertCircle className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                          <span>{regErrors.email}</span>
+                        </div>
+                      )}
                     </div>
 
                     <div>
                       <label className="block font-display text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B4B6C2] mb-1.5">
                         Phone Number
                       </label>
-                      <div className="relative flex items-center rounded-xl bg-white/[0.03] border border-white/[0.1] transition-all silver-border-glow">
-                        <Phone className="w-4 h-4 text-[#7D8091] ml-3.5 shrink-0" />
+                      <div
+                        className={`relative flex items-center rounded-xl transition-all ${
+                          regErrors.phoneNo
+                            ? 'bg-red-500/[0.04] border border-red-500/60 shadow-[0_0_16px_-4px_rgba(239,68,68,0.3)]'
+                            : 'bg-white/[0.03] border border-white/[0.1] silver-border-glow'
+                        }`}
+                      >
+                        <Phone
+                          className={`w-4 h-4 ml-3.5 shrink-0 transition-colors ${
+                            regErrors.phoneNo ? 'text-red-400' : 'text-[#7D8091]'
+                          }`}
+                        />
                         <input
                           type="tel"
-                          required
                           value={phoneNo}
-                          onChange={(e) => setPhoneNo(e.target.value)}
+                          onChange={(e) =>
+                            updateRegField('phoneNo', e.target.value, setPhoneNo)
+                          }
+                          onBlur={() => handleRegBlur('phoneNo')}
                           placeholder="01005483660"
                           className="w-full bg-transparent px-3 py-3 text-xs sm:text-sm text-white placeholder-[#555869] focus:outline-none"
                         />
                       </div>
+                      {regErrors.phoneNo && (
+                        <div
+                          role="alert"
+                          className="mt-1.5 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-500/[0.08] border border-red-500/25 text-red-300 text-[11px] font-medium leading-snug"
+                        >
+                          <AlertCircle className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                          <span>{regErrors.phoneNo}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -560,30 +779,63 @@ export const AuthView: React.FC<AuthViewProps> = ({
                     <label className="block font-display text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B4B6C2] mb-1.5">
                       City / Governorate
                     </label>
-                    <div className="relative flex items-center rounded-xl bg-white/[0.03] border border-white/[0.1] transition-all silver-border-glow">
-                      <MapPin className="w-4 h-4 text-[#7D8091] ml-3.5 shrink-0" />
+                    <div
+                      className={`relative flex items-center rounded-xl transition-all ${
+                        regErrors.city
+                          ? 'bg-red-500/[0.04] border border-red-500/60 shadow-[0_0_16px_-4px_rgba(239,68,68,0.3)]'
+                          : 'bg-white/[0.03] border border-white/[0.1] silver-border-glow'
+                      }`}
+                    >
+                      <MapPin
+                        className={`w-4 h-4 ml-3.5 shrink-0 transition-colors ${
+                          regErrors.city ? 'text-red-400' : 'text-[#7D8091]'
+                        }`}
+                      />
                       <input
                         type="text"
-                        required
                         value={city}
-                        onChange={(e) => setCity(e.target.value)}
+                        onChange={(e) =>
+                          updateRegField('city', e.target.value, setCity)
+                        }
+                        onBlur={() => handleRegBlur('city')}
                         placeholder="Cairo"
                         className="w-full bg-transparent px-3 py-3 text-xs sm:text-sm text-white placeholder-[#555869] focus:outline-none"
                       />
                     </div>
+                    {regErrors.city && (
+                      <div
+                        role="alert"
+                        className="mt-1.5 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-500/[0.08] border border-red-500/25 text-red-300 text-[11px] font-medium leading-snug"
+                      >
+                        <AlertCircle className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                        <span>{regErrors.city}</span>
+                      </div>
+                    )}
                   </div>
 
                   <div>
                     <label className="block font-display text-[10px] font-semibold uppercase tracking-[0.2em] text-[#B4B6C2] mb-1.5">
                       Password
                     </label>
-                    <div className="relative flex items-center rounded-xl bg-white/[0.03] border border-white/[0.1] transition-all silver-border-glow">
-                      <Lock className="w-4 h-4 text-[#7D8091] ml-3.5 shrink-0" />
+                    <div
+                      className={`relative flex items-center rounded-xl transition-all ${
+                        regErrors.password
+                          ? 'bg-red-500/[0.04] border border-red-500/60 shadow-[0_0_16px_-4px_rgba(239,68,68,0.3)]'
+                          : 'bg-white/[0.03] border border-white/[0.1] silver-border-glow'
+                      }`}
+                    >
+                      <Lock
+                        className={`w-4 h-4 ml-3.5 shrink-0 transition-colors ${
+                          regErrors.password ? 'text-red-400' : 'text-[#7D8091]'
+                        }`}
+                      />
                       <input
                         type={showRegPassword ? 'text' : 'password'}
-                        required
                         value={regPassword}
-                        onChange={(e) => setRegPassword(e.target.value)}
+                        onChange={(e) =>
+                          updateRegField('password', e.target.value, setRegPassword)
+                        }
+                        onBlur={() => handleRegBlur('password')}
                         placeholder="Min. 6 chars with A-Z, a-z, 0-9 & symbol"
                         className="w-full bg-transparent px-3 py-3 text-xs sm:text-sm text-white placeholder-[#555869] focus:outline-none"
                       />
@@ -600,6 +852,15 @@ export const AuthView: React.FC<AuthViewProps> = ({
                         )}
                       </button>
                     </div>
+                    {regErrors.password && (
+                      <div
+                        role="alert"
+                        className="mt-1.5 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-500/[0.08] border border-red-500/25 text-red-300 text-[11px] font-medium leading-snug"
+                      >
+                        <AlertCircle className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                        <span>{regErrors.password}</span>
+                      </div>
+                    )}
 
                     <div className="mt-2.5 space-y-2">
                       <div className="flex gap-1.5 h-1">

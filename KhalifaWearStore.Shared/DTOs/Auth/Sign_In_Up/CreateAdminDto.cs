@@ -1,5 +1,3 @@
-using System.ComponentModel.DataAnnotations;
-
 namespace KhalifaWearStore.Shared.DTOs.Auth.Sign_In_Up
 {
     public class CreateAdminDto
@@ -16,8 +14,7 @@ namespace KhalifaWearStore.Shared.DTOs.Auth.Sign_In_Up
             set => _fullName = value;
         }
 
-        [Required, EmailAddress]
-        public string Email { get; set; } = default!;
+        public string Email { get; set; } = string.Empty;
 
         public string? PhoneNo { get; set; }
 
@@ -34,8 +31,7 @@ namespace KhalifaWearStore.Shared.DTOs.Auth.Sign_In_Up
 
         public string Postcode { get; set; } = string.Empty;
 
-        [Required]
-        public string Password { get; set; } = default!;
+        public string Password { get; set; } = string.Empty;
     }
 
     public class AdminAccountDto

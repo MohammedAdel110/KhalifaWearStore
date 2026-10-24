@@ -12,8 +12,10 @@ import { isJwtTokenExpired, type AuthResponseDto } from './services/authApi';
 import {
   fetchCategories,
   fetchProducts,
+  fetchActivePromoCodes,
   type CategoryDto,
   type ProductDto,
+  type PromoCodeDto,
   type BagItem,
 } from './services/storeApi';
 import { Navbar, type ActivePage } from './components/Navbar';
@@ -103,6 +105,7 @@ export function App() {
   // Storefront & Catalog State
   const [categories, setCategories] = useState<CategoryDto[]>([]);
   const [featuredProducts, setFeaturedProducts] = useState<ProductDto[]>([]);
+  const [activePromoCodes, setActivePromoCodes] = useState<PromoCodeDto[]>([]);
   const [catalogProducts, setCatalogProducts] = useState<ProductDto[]>([]);
   const [catalogTotal, setCatalogTotal] = useState(0);
   const [loadingHome, setLoadingHome] = useState(true);
@@ -143,10 +146,18 @@ export function App() {
 
   const loadHomeData = useCallback(() => {
     setLoadingHome(true);
-    Promise.all([fetchCategories(), fetchProducts({ pageIndex: 1, pageSize: 12 })])
-      .then(([cats, prods]) => {
+    Promise.all([
+      fetchCategories(),
+      fetchProducts({ pageIndex: 1, pageSize: 12 }),
+      fetchActivePromoCodes(),
+    ])
+      .then(([cats, prods, promos]) => {
         setCategories(cats);
         setFeaturedProducts(prods.data);
+        setActivePromoCodes(promos);
+        setSelectedCategoryId((prev) =>
+          prev !== null && !cats.some((c) => c.id === prev) ? null : prev
+        );
       })
       .catch(() => {})
       .finally(() => {
@@ -313,6 +324,12 @@ export function App() {
       <Navbar
         activePage={activePage}
         onNavigate={handleNavigate}
+        categories={categories}
+        selectedCategoryId={selectedCategoryId}
+        featuredPromo={
+          activePromoCodes.find((p) => p.isFeaturedOnBanner && p.isActive) ??
+          null
+        }
         session={customerSession}
         bagCount={totalBagCount}
         onOpenBag={() => setIsBagOpen(true)}

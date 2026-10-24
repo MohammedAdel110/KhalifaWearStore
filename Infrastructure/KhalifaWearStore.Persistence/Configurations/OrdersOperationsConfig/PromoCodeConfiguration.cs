@@ -41,6 +41,10 @@ namespace KhalifaWearStore.Persistence.Configurations.OrdersOperationsConfig
                    .HasColumnName("isActive")
                    .HasDefaultValue(true);
 
+            builder.Property(p => p.IsFeaturedOnBanner)
+                   .HasColumnName("isFeaturedOnBanner")
+                   .HasDefaultValue(false);
+
             builder.Property(p => p.Description)
                    .HasColumnName("description")
                    .HasMaxLength(250)

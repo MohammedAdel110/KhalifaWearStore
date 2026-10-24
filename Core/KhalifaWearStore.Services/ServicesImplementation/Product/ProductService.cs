@@ -20,7 +20,8 @@ namespace KhalifaWearStore.Services.ServicesImplementation.Product
         IUnitOfWork unitOfWork,
         IMapper mapper,
         IAttachmentService attachmentService,
-        IConfiguration configuration) : IProductService
+        IConfiguration configuration,
+        IHttpContextAccessor httpContextAccessor) : IProductService
     {
         private static readonly JsonSerializerOptions JsonOptions = new()
         {
@@ -280,6 +281,26 @@ namespace KhalifaWearStore.Services.ServicesImplementation.Product
             return result;
         }
 
+        private string GetEffectiveBaseUrl()
+        {
+            var req = httpContextAccessor.HttpContext?.Request;
+            if (req != null && req.Host.HasValue)
+            {
+                if (req.Host.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase))
+                {
+                    var host = req.Host.Value.Equals("localhost:5050", StringComparison.OrdinalIgnoreCase)
+                        ? "localhost:7050"
+                        : req.Host.Value;
+                    return $"https://{host}";
+                }
+
+                var forwardedProto = req.Headers["X-Forwarded-Proto"].FirstOrDefault();
+                var scheme = !string.IsNullOrEmpty(forwardedProto) ? forwardedProto : req.Scheme;
+                return $"{scheme}://{req.Host}";
+            }
+            return (configuration["ApiBaseUrl"] ?? "https://localhost:7050").TrimEnd('/');
+        }
+
         private string? ResolveFullImageUrl(string? path)
         {
             if (string.IsNullOrWhiteSpace(path))
@@ -292,7 +313,7 @@ namespace KhalifaWearStore.Services.ServicesImplementation.Product
                 return trimmed;
             }
 
-            var baseUrl = (configuration["ApiBaseUrl"] ?? "http://localhost:5050").TrimEnd('/');
+            var baseUrl = GetEffectiveBaseUrl();
             return $"{baseUrl}/{trimmed.TrimStart('/')}";
         }
 
@@ -302,10 +323,19 @@ namespace KhalifaWearStore.Services.ServicesImplementation.Product
                 return null;
 
             var trimmed = urlOrPath.Trim();
-            var baseUrl = (configuration["ApiBaseUrl"] ?? "http://localhost:5050").TrimEnd('/');
+            var baseUrl = GetEffectiveBaseUrl();
             if (trimmed.StartsWith(baseUrl, StringComparison.OrdinalIgnoreCase))
             {
                 return trimmed[baseUrl.Length..].TrimStart('/');
+            }
+            var configBase = (configuration["ApiBaseUrl"] ?? "http://localhost:5050").TrimEnd('/');
+            if (trimmed.StartsWith(configBase, StringComparison.OrdinalIgnoreCase))
+            {
+                return trimmed[configBase.Length..].TrimStart('/');
+            }
+            if (Uri.TryCreate(trimmed, UriKind.Absolute, out var uri))
+            {
+                return uri.AbsolutePath.TrimStart('/');
             }
             return trimmed.TrimStart('/');
         }

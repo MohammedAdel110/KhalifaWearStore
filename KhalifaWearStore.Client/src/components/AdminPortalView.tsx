@@ -48,6 +48,7 @@ import {
   adminUpdateOrderStatus,
   adminFetchAllStocks,
   adminCreateCategory,
+  adminUpdateCategory,
   adminDeleteCategory,
   adminCreateProduct,
   adminUpdateProduct,
@@ -59,6 +60,7 @@ import {
   adminFetchPromoCodes,
   adminCreatePromoCode,
   adminTogglePromoCode,
+  adminFeaturePromoCode,
   adminDeletePromoCode,
   fetchProductDetails,
   fetchStocksByProduct,
@@ -272,8 +274,17 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
   // =========================================================================
   // 5. CATEGORY MANAGER STATE
   // =========================================================================
+  const [editingCategoryId, setEditingCategoryId] = useState<number | null>(
+    null
+  );
   const [newCategoryName, setNewCategoryName] = useState('');
   const [newCategoryDesc, setNewCategoryDesc] = useState('');
+  const [newCategoryImageFile, setNewCategoryImageFile] = useState<File | null>(
+    null
+  );
+  const [newCategoryImagePreview, setNewCategoryImagePreview] = useState<
+    string | null
+  >(null);
   const [isCreatingCategory, setIsCreatingCategory] = useState(false);
 
   // =========================================================================
@@ -288,6 +299,8 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
   const [newPromoValue, setNewPromoValue] = useState('15');
   const [newPromoMinSubtotal, setNewPromoMinSubtotal] = useState('0');
   const [newPromoDesc, setNewPromoDesc] = useState('');
+  const [newPromoFeaturedOnBanner, setNewPromoFeaturedOnBanner] =
+    useState(true);
   const [isSavingPromo, setIsSavingPromo] = useState(false);
 
   useEffect(() => {
@@ -368,22 +381,34 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
           discountValue: val,
           minOrderSubtotal: minSub,
           isActive: true,
+          isFeaturedOnBanner: newPromoFeaturedOnBanner,
           description:
             newPromoDesc.trim() ||
             (newPromoType === 'Percentage'
-              ? `${val}% OFF Drop Subtotal`
+              ? `${val}% OFF` +
+                (minSub > 0
+                  ? ` on orders above ${minSub.toLocaleString()} EGP`
+                  : ' on all orders')
               : newPromoType === 'FixedAmount'
-              ? `${val} EGP Instant Discount`
-              : 'Free Governorate Delivery'),
+              ? `${val.toLocaleString()} EGP OFF` +
+                (minSub > 0
+                  ? ` on orders above ${minSub.toLocaleString()} EGP`
+                  : ' on all orders')
+              : 'Free Express Delivery across Egypt'),
         },
         session.token
       );
       setNewPromoCode('');
       setNewPromoDesc('');
       setStatusMsg(
-        `Promo code "${normalized}" saved and immediately live at checkout!`
+        `Promo code "${normalized}" saved${
+          newPromoFeaturedOnBanner
+            ? ' and featured on the landing page banner!'
+            : ' and immediately live at checkout!'
+        }`
       );
       await loadPromoCodes();
+      onRefreshStoreData();
     } catch (err) {
       setErrorMsg(
         err instanceof Error ? err.message : 'Failed to create promo code.'
@@ -406,9 +431,31 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
           updated.isActive ? 'ACTIVE' : 'PAUSED'
         }.`
       );
+      onRefreshStoreData();
     } catch (err) {
       setErrorMsg(
         err instanceof Error ? err.message : 'Failed to toggle promo code.'
+      );
+    }
+  };
+
+  const handleFeaturePromoCode = async (id: number) => {
+    if (!session) return;
+    setErrorMsg(null);
+    try {
+      const updated = await adminFeaturePromoCode(id, session.token);
+      await loadPromoCodes();
+      onRefreshStoreData();
+      setStatusMsg(
+        updated.isFeaturedOnBanner
+          ? `Promo code "${updated.code}" (${updated.description}) is now displayed on the Landing Page banner!`
+          : `Removed "${updated.code}" from the Landing Page banner.`
+      );
+    } catch (err) {
+      setErrorMsg(
+        err instanceof Error
+          ? err.message
+          : 'Failed to update landing page promo banner.'
       );
     }
   };
@@ -420,6 +467,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
       await adminDeletePromoCode(id, session.token);
       setPromoCodes((prev) => prev.filter((p) => p.id !== id));
       setStatusMsg(`Promo code "${code}" deleted.`);
+      onRefreshStoreData();
     } catch (err) {
       setErrorMsg(
         err instanceof Error ? err.message : 'Failed to delete promo code.'
@@ -1626,20 +1674,41 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
     setStatusMsg(null);
     setIsCreatingCategory(true);
     try {
-      const created = await adminCreateCategory(
-        {
-          categoryName: newCategoryName.trim(),
-          categoryDescription: newCategoryDesc.trim(),
-        },
-        session.token
-      );
-      setStatusMsg(`Created category "${created.categoryName}".`);
+      if (editingCategoryId !== null) {
+        const updated = await adminUpdateCategory(
+          editingCategoryId,
+          {
+            categoryName: newCategoryName.trim(),
+            categoryDescription: newCategoryDesc.trim(),
+            imageFile: newCategoryImageFile,
+          },
+          session.token
+        );
+        setStatusMsg(`Updated category "${updated.categoryName}".`);
+        setEditingCategoryId(null);
+      } else {
+        const created = await adminCreateCategory(
+          {
+            categoryName: newCategoryName.trim(),
+            categoryDescription: newCategoryDesc.trim(),
+            imageFile: newCategoryImageFile,
+          },
+          session.token
+        );
+        setStatusMsg(`Created category "${created.categoryName}".`);
+      }
       setNewCategoryName('');
       setNewCategoryDesc('');
+      setNewCategoryImageFile(null);
+      setNewCategoryImagePreview(null);
       onRefreshStoreData();
     } catch (err) {
       setErrorMsg(
-        err instanceof Error ? err.message : 'Failed to create category.'
+        err instanceof Error
+          ? err.message
+          : editingCategoryId !== null
+          ? 'Failed to update category.'
+          : 'Failed to create category.'
       );
     } finally {
       setIsCreatingCategory(false);
@@ -3495,9 +3564,28 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
         {activeSection === 'categories' && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             <div className="lg:col-span-5 bg-[#0A0B0F] border border-white/[0.12] p-6 sm:p-8 space-y-5">
-              <h2 className="font-brand text-lg font-bold uppercase tracking-wider text-white border-b border-white/[0.08] pb-3">
-                CREATE NEW CATEGORY
-              </h2>
+              <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
+                <h2 className="font-brand text-lg font-bold uppercase tracking-wider text-white">
+                  {editingCategoryId !== null
+                    ? `EDIT CATEGORY #${editingCategoryId}`
+                    : 'CREATE NEW CATEGORY'}
+                </h2>
+                {editingCategoryId !== null && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingCategoryId(null);
+                      setNewCategoryName('');
+                      setNewCategoryDesc('');
+                      setNewCategoryImageFile(null);
+                      setNewCategoryImagePreview(null);
+                    }}
+                    className="px-2.5 py-1 bg-white/10 hover:bg-white/20 text-[10px] font-display font-bold uppercase tracking-wider text-white transition cursor-pointer"
+                  >
+                    CANCEL
+                  </button>
+                )}
+              </div>
               <form onSubmit={handleCreateCategory} className="space-y-4">
                 <div>
                   <label className="block font-display text-[10px] font-bold uppercase tracking-[0.2em] text-[#9EA2B3] mb-1.5">
@@ -3508,7 +3596,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                     required
                     value={newCategoryName}
                     onChange={(e) => setNewCategoryName(e.target.value)}
-                    placeholder="e.g. HEAVYWEIGHT CARGOS"
+                    placeholder="e.g. JACKETS"
                     className="w-full bg-[#11131A] border border-white/15 px-3.5 py-3 text-xs text-white outline-none"
                   />
                 </div>
@@ -3525,12 +3613,66 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                     className="w-full bg-[#11131A] border border-white/15 px-3.5 py-3 text-xs text-white outline-none"
                   />
                 </div>
+                <div>
+                  <label className="block font-display text-[10px] font-bold uppercase tracking-[0.2em] text-[#9EA2B3] mb-1.5">
+                    CATEGORY COVER IMAGE (SAVED IN DATABASE)
+                  </label>
+                  <div className="flex items-center gap-4 p-3 bg-[#11131A] border border-white/15">
+                    <div className="w-16 h-20 bg-[#08090C] border border-white/10 overflow-hidden shrink-0 flex items-center justify-center">
+                      {newCategoryImagePreview ? (
+                        <img
+                          src={newCategoryImagePreview}
+                          alt="Category preview"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <img
+                          src="/product-placeholder.svg"
+                          alt="Placeholder"
+                          className="w-full h-full object-cover opacity-50"
+                        />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0 space-y-2">
+                      <label className="inline-flex items-center gap-2 px-3.5 py-2 bg-white/[0.08] hover:bg-white hover:text-[#060608] text-white font-display text-[10px] font-bold uppercase tracking-[0.18em] transition cursor-pointer">
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>
+                          {newCategoryImagePreview
+                            ? 'CHANGE IMAGE'
+                            : 'UPLOAD IMAGE'}
+                        </span>
+                        <input
+                          type="file"
+                          accept=".jpg,.jpeg,.png,.webp"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0] ?? null;
+                            if (!file) return;
+                            setNewCategoryImageFile(file);
+                            setNewCategoryImagePreview(
+                              URL.createObjectURL(file)
+                            );
+                          }}
+                          className="hidden"
+                        />
+                      </label>
+                      <p className="text-[10px] text-[#7D8091] truncate">
+                        {newCategoryImageFile
+                          ? newCategoryImageFile.name
+                          : 'JPG, PNG, or WEBP (Max 8MB) • Stored in SQL Server'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
                 <button
                   type="submit"
                   disabled={isCreatingCategory}
                   className="w-full py-3.5 bg-white text-[#060608] font-display text-xs font-extrabold uppercase tracking-[0.2em] cursor-pointer"
                 >
-                  {isCreatingCategory ? 'CREATING...' : '+ CREATE CATEGORY'}
+                  {isCreatingCategory
+                    ? 'SAVING...'
+                    : editingCategoryId !== null
+                    ? 'SAVE CATEGORY CHANGES'
+                    : '+ CREATE CATEGORY'}
                 </button>
               </form>
             </div>
@@ -3540,36 +3682,74 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                 ACTIVE CATEGORIES ({categories.length})
               </h2>
               <div className="space-y-3">
-                {categories.map((cat) => (
-                  <div
-                    key={cat.id}
-                    className="p-4 bg-[#11131A] border border-white/[0.09] flex items-center justify-between gap-4"
-                  >
-                    <div>
-                      <span className="text-[10px] font-mono text-[#7D8091]">
-                        ID #{cat.id}
-                      </span>
-                      <h3 className="font-brand text-sm font-bold uppercase tracking-wider text-white">
-                        {cat.categoryName}
-                      </h3>
-                      {cat.categoryDescription && (
-                        <p className="text-xs text-[#8E92A4] mt-0.5">
-                          {cat.categoryDescription}
-                        </p>
-                      )}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handleDeleteCategory(cat.id, cat.categoryName)
-                      }
-                      className="p-2 text-[#8E92A4] hover:text-red-400 transition cursor-pointer"
-                      title="Delete Category"
+                {categories.map((cat) => {
+                  const catImg = cat.image
+                    ? resolveProductImage(cat.image, cat.id)
+                    : '/product-placeholder.svg';
+                  return (
+                    <div
+                      key={cat.id}
+                      className="p-4 bg-[#11131A] border border-white/[0.09] flex items-center justify-between gap-4"
                     >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
+                      <div className="flex items-center gap-4 min-w-0">
+                        <div className="w-14 h-16 bg-[#08090C] border border-white/10 overflow-hidden shrink-0">
+                          <img
+                            src={catImg}
+                            alt={cat.categoryName}
+                            onError={(e) => {
+                              (e.currentTarget as HTMLImageElement).src =
+                                '/product-placeholder.svg';
+                            }}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div className="min-w-0">
+                          <span className="text-[10px] font-mono text-[#7D8091]">
+                            ID #{cat.id}
+                          </span>
+                          <h3 className="font-brand text-sm font-bold uppercase tracking-wider text-white truncate">
+                            {cat.categoryName}
+                          </h3>
+                          {cat.categoryDescription && (
+                            <p className="text-xs text-[#8E92A4] mt-0.5 line-clamp-2">
+                              {cat.categoryDescription}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingCategoryId(cat.id);
+                            setNewCategoryName(cat.categoryName);
+                            setNewCategoryDesc(cat.categoryDescription || '');
+                            setNewCategoryImageFile(null);
+                            setNewCategoryImagePreview(
+                              cat.image
+                                ? resolveProductImage(cat.image, cat.id)
+                                : null
+                            );
+                          }}
+                          className="p-2 text-[#8E92A4] hover:text-white transition cursor-pointer"
+                          title="Edit Category & Upload Image"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleDeleteCategory(cat.id, cat.categoryName)
+                          }
+                          className="p-2 text-[#8E92A4] hover:text-red-400 transition cursor-pointer"
+                          title="Delete Category"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -4000,16 +4180,35 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
 
                 <div>
                   <label className="block font-display text-[10px] font-bold uppercase tracking-[0.2em] text-[#B8BCCB] mb-2">
-                    PUBLIC DESCRIPTION (OPTIONAL)
+                    OFFER DESCRIPTION (SHOWN ON LANDING PAGE &amp; CHECKOUT)
                   </label>
                   <input
                     type="text"
                     value={newPromoDesc}
                     onChange={(e) => setNewPromoDesc(e.target.value)}
-                    placeholder="e.g. Limited VIP 20% Drop Discount"
+                    placeholder="e.g. 10% OFF ALL HOODIES, FREE EXPRESS DELIVERY, 200 EGP OFF ORDERS ABOVE 2,000 EGP"
                     className="w-full bg-[#12141C] border border-white/15 focus:border-amber-300 px-4 py-3 text-xs text-white outline-none"
                   />
                 </div>
+
+                <label className="flex items-center justify-between gap-3 p-3.5 bg-[#12141C] border border-amber-400/30 cursor-pointer">
+                  <div>
+                    <span className="font-display text-[10px] font-extrabold uppercase tracking-[0.18em] text-amber-300 block">
+                      DISPLAY ON LANDING PAGE BANNER
+                    </span>
+                    <span className="text-[11px] text-[#8E92A4] block mt-0.5">
+                      Show this offer description and code in the top announcement bar on the storefront
+                    </span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={newPromoFeaturedOnBanner}
+                    onChange={(e) =>
+                      setNewPromoFeaturedOnBanner(e.target.checked)
+                    }
+                    className="w-4 h-4 accent-amber-400 cursor-pointer shrink-0"
+                  />
+                </label>
 
                 <button
                   type="submit"
@@ -4024,7 +4223,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                   ) : (
                     <>
                       <Plus className="w-4 h-4" />
-                      <span>PUBLISH PROMO CODE</span>
+                      <span>SAVE &amp; PUBLISH PROMO CODE</span>
                     </>
                   )}
                 </button>
@@ -4036,7 +4235,7 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
               <div className="flex items-center justify-between">
                 <div>
                   <span className="font-display text-[10px] font-bold uppercase tracking-[0.22em] text-emerald-400 block">
-                    ACTIVE &amp; PAUSED COUPONS
+                    ACTIVE &amp; PAUSED COUPONS • LANDING PAGE BANNER CONTROL
                   </span>
                   <h2 className="font-brand text-xl font-extrabold uppercase tracking-wider text-white mt-1">
                     STOREFRONT PROMO CODES ({promoCodes.length})
@@ -4059,13 +4258,15 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                     <div
                       key={p.id}
                       className={`p-4 border flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition ${
-                        p.isActive
+                        p.isFeaturedOnBanner && p.isActive
+                          ? 'bg-[#151722] border-amber-400/50 shadow-[0_0_25px_rgba(251,191,36,0.08)]'
+                          : p.isActive
                           ? 'bg-[#12141C] border-white/[0.12]'
                           : 'bg-white/[0.02] border-white/[0.06] opacity-60'
                       }`}
                     >
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2.5 flex-wrap">
+                      <div className="space-y-1.5 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className="px-3 py-1 bg-amber-400/15 border border-amber-400/40 font-mono text-sm font-extrabold text-amber-300 tracking-wider">
                             {p.code}
                           </span>
@@ -4078,6 +4279,11 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                           >
                             {p.isActive ? 'ACTIVE AT CHECKOUT' : 'PAUSED'}
                           </span>
+                          {p.isFeaturedOnBanner && p.isActive && (
+                            <span className="px-2.5 py-0.5 bg-amber-400 text-[#060608] text-[9px] font-display font-extrabold uppercase tracking-wider">
+                              ★ DISPLAYED ON LANDING PAGE
+                            </span>
+                          )}
                           <span className="text-xs font-display font-bold text-white">
                             {p.discountType === 'Percentage'
                               ? `${p.discountValue}% OFF`
@@ -4086,7 +4292,10 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                               : 'FREE SHIPPING'}
                           </span>
                         </div>
-                        <p className="text-xs text-[#8E92A4]">
+                        <p className="text-xs text-[#D0D3E0]">
+                          <strong className="text-white/70 font-display text-[10px] uppercase tracking-wider mr-1.5">
+                            OFFER TEXT:
+                          </strong>
                           {p.description || 'Storefront promo code'}
                           {p.minOrderSubtotal > 0
                             ? ` • Min. Subtotal: ${p.minOrderSubtotal.toLocaleString()} EGP`
@@ -4094,7 +4303,43 @@ export const AdminPortalView: React.FC<AdminPortalViewProps> = ({
                         </p>
                       </div>
 
-                      <div className="flex items-center gap-2 shrink-0">
+                      <div className="flex items-center gap-2 flex-wrap shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleFeaturePromoCode(p.id)}
+                          className={`px-3 py-2 font-display text-[10px] font-extrabold uppercase tracking-wider border transition cursor-pointer ${
+                            p.isFeaturedOnBanner && p.isActive
+                              ? 'bg-amber-400 text-[#060608] border-amber-300 hover:bg-amber-300'
+                              : 'bg-white/[0.06] hover:bg-amber-400/20 text-amber-300 border-amber-400/35'
+                          }`}
+                          title="Choose whether this promo code and its description appear in the top banner on the landing page"
+                        >
+                          {p.isFeaturedOnBanner && p.isActive
+                            ? '★ ON LANDING PAGE'
+                            : 'SHOW ON LANDING'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setNewPromoCode(p.code);
+                            setNewPromoType(
+                              (p.discountType as
+                                | 'Percentage'
+                                | 'FixedAmount'
+                                | 'FreeShipping') || 'Percentage'
+                            );
+                            setNewPromoValue(String(p.discountValue));
+                            setNewPromoMinSubtotal(String(p.minOrderSubtotal));
+                            setNewPromoDesc(p.description || '');
+                            setNewPromoFeaturedOnBanner(
+                              Boolean(p.isFeaturedOnBanner)
+                            );
+                          }}
+                          className="p-2 bg-white/[0.05] hover:bg-white/15 border border-white/15 text-[#D0D3E0] hover:text-white transition cursor-pointer"
+                          title="Edit Promo Code & Description"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
                         <button
                           type="button"
                           onClick={() => handleTogglePromoCode(p.id)}

@@ -48,6 +48,9 @@ namespace KhalifaWearStore.Persistence.Configurations.User_Profiles
                 .IsRequired();
 
             builder.HasIndex(x => x.Email).IsUnique();
+            builder.HasIndex(x => x.PhoneNo)
+                .IsUnique()
+                .HasFilter("[phoneNo] IS NOT NULL AND [phoneNo] <> '' AND [phoneNo] <> '0000000000'");
 
             // 1-to-1 Relationship: Customer -> ApplicationUser
             builder.HasOne(x => x.ApplicationUser)

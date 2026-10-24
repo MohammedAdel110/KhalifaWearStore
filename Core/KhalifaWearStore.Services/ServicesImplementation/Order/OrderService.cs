@@ -68,8 +68,15 @@ namespace KhalifaWearStore.Services.ServicesImplementation.Order
                 customer.FirstName = createDto.FirstName.Trim();
             if (!string.IsNullOrWhiteSpace(createDto.LastName))
                 customer.LastName = createDto.LastName.Trim();
-            if (!string.IsNullOrWhiteSpace(createDto.PhoneNo))
-                customer.PhoneNo = createDto.PhoneNo.Trim();
+            if ((string.IsNullOrWhiteSpace(customer.PhoneNo) || customer.PhoneNo == "0000000000") &&
+                !string.IsNullOrWhiteSpace(createDto.PhoneNo))
+            {
+                var candidatePhone = createDto.PhoneNo.Trim();
+                var allCustomers = await customerRepo.GetAllAsync();
+                var phoneTaken = allCustomers.Any(c => c.Id != customer.Id && c.PhoneNo == candidatePhone);
+                if (!phoneTaken)
+                    customer.PhoneNo = candidatePhone;
+            }
             if (!string.IsNullOrWhiteSpace(createDto.City))
                 customer.City = createDto.City.Trim();
             if (!string.IsNullOrWhiteSpace(createDto.ShippingAddress))
@@ -93,6 +100,9 @@ namespace KhalifaWearStore.Services.ServicesImplementation.Order
 
             foreach (var item in createDto.Items)
             {
+                if (item.Quantity <= 0 || item.Quantity > 100)
+                    throw new BadRequestCustomeException("Item quantity must be between 1 and 100.");
+
                 var product = await productRepo.GetByIdAsync(item.ProductId);
                 if (product == null || product.IsDeleted || !product.ProductAvailable)
                     throw new BadRequestCustomeException($"Product with ID {item.ProductId} is not available.");
@@ -143,8 +153,8 @@ namespace KhalifaWearStore.Services.ServicesImplementation.Order
                 CustomerId = customer.Id,
                 PaymentId = payment.Id,
                 OrderDate = DateTime.UtcNow,
-                Paid = createDto.Paid,
-                PaymentDate = createDto.Paid ? DateTime.UtcNow : null,
+                Paid = false,
+                PaymentDate = null,
                 OrderStatus = "Pending",
                 ShippingFee = shippingFee,
                 DiscountAmount = discountAmount,
@@ -463,6 +473,7 @@ namespace KhalifaWearStore.Services.ServicesImplementation.Order
             DiscountValue = entity.DiscountValue,
             MinOrderSubtotal = entity.MinOrderSubtotal,
             IsActive = entity.IsActive,
+            IsFeaturedOnBanner = entity.IsFeaturedOnBanner,
             Description = entity.Description,
             CreatedAt = entity.CreatedAt
         };
@@ -473,7 +484,8 @@ namespace KhalifaWearStore.Services.ServicesImplementation.Order
             var all = await promoRepo.GetAllAsync();
             return all
                 .Where(p => !p.IsDeleted && p.IsActive)
-                .OrderByDescending(p => p.CreatedAt)
+                .OrderByDescending(p => p.IsFeaturedOnBanner)
+                .ThenByDescending(p => p.CreatedAt)
                 .Select(MapPromoCode)
                 .ToList();
         }
@@ -484,7 +496,8 @@ namespace KhalifaWearStore.Services.ServicesImplementation.Order
             var all = await promoRepo.GetAllAsync();
             return all
                 .Where(p => !p.IsDeleted)
-                .OrderByDescending(p => p.CreatedAt)
+                .OrderByDescending(p => p.IsFeaturedOnBanner)
+                .ThenByDescending(p => p.CreatedAt)
                 .Select(MapPromoCode)
                 .ToList();
         }
@@ -517,6 +530,15 @@ namespace KhalifaWearStore.Services.ServicesImplementation.Order
                         ? $"{createDto.DiscountValue:N0} EGP OFF" + (createDto.MinOrderSubtotal > 0 ? $" orders >= {createDto.MinOrderSubtotal:N0} EGP" : " any order")
                         : "Free Express Delivery";
 
+            if (createDto.IsFeaturedOnBanner)
+            {
+                foreach (var other in existingList.Where(p => !p.IsDeleted && p.IsFeaturedOnBanner))
+                {
+                    other.IsFeaturedOnBanner = false;
+                    promoRepo.UpdateAsync(other);
+                }
+            }
+
             if (existing != null)
             {
                 existing.DiscountType = discountType;
@@ -524,12 +546,14 @@ namespace KhalifaWearStore.Services.ServicesImplementation.Order
                 existing.MinOrderSubtotal = Math.Max(0m, createDto.MinOrderSubtotal);
                 existing.Description = description;
                 existing.IsActive = true;
+                existing.IsFeaturedOnBanner = createDto.IsFeaturedOnBanner || existing.IsFeaturedOnBanner;
                 existing.UpdatedAt = DateTime.UtcNow;
                 promoRepo.UpdateAsync(existing);
                 await unitOfWork.SaveChangesAsync();
                 return MapPromoCode(existing);
             }
 
+            var anyFeatured = existingList.Any(p => !p.IsDeleted && p.IsActive && p.IsFeaturedOnBanner);
             var entity = new PromoCode
             {
                 Code = cleanCode,
@@ -537,6 +561,7 @@ namespace KhalifaWearStore.Services.ServicesImplementation.Order
                 DiscountValue = Math.Max(0m, createDto.DiscountValue),
                 MinOrderSubtotal = Math.Max(0m, createDto.MinOrderSubtotal),
                 IsActive = true,
+                IsFeaturedOnBanner = createDto.IsFeaturedOnBanner || !anyFeatured,
                 Description = description,
                 CreatedAt = DateTime.UtcNow
             };
@@ -553,10 +578,46 @@ namespace KhalifaWearStore.Services.ServicesImplementation.Order
                 ?? throw new NotFoundCutomeException($"Promo code #{id} not found.");
 
             entity.IsActive = !entity.IsActive;
+            if (!entity.IsActive)
+            {
+                entity.IsFeaturedOnBanner = false;
+            }
             entity.UpdatedAt = DateTime.UtcNow;
             promoRepo.UpdateAsync(entity);
             await unitOfWork.SaveChangesAsync();
             return MapPromoCode(entity);
+        }
+
+        public async Task<PromoCodeDto> FeaturePromoCodeOnBannerAsync(int id)
+        {
+            var promoRepo = unitOfWork.GetRepository<PromoCode, int>();
+            var all = await promoRepo.GetAllAsync();
+            var target = all.FirstOrDefault(p => p.Id == id && !p.IsDeleted)
+                ?? throw new NotFoundCutomeException($"Promo code #{id} not found.");
+
+            var willFeature = !target.IsFeaturedOnBanner;
+            foreach (var p in all.Where(x => !x.IsDeleted))
+            {
+                if (p.Id == target.Id)
+                {
+                    p.IsFeaturedOnBanner = willFeature;
+                    if (willFeature)
+                    {
+                        p.IsActive = true;
+                    }
+                    p.UpdatedAt = DateTime.UtcNow;
+                    promoRepo.UpdateAsync(p);
+                }
+                else if (willFeature && p.IsFeaturedOnBanner)
+                {
+                    p.IsFeaturedOnBanner = false;
+                    p.UpdatedAt = DateTime.UtcNow;
+                    promoRepo.UpdateAsync(p);
+                }
+            }
+
+            await unitOfWork.SaveChangesAsync();
+            return MapPromoCode(target);
         }
 
         public async Task<bool> DeletePromoCodeAsync(int id)

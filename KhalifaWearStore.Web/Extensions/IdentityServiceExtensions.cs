@@ -11,11 +11,15 @@ namespace KhalifaWearStore.Web.Extensions
         {
             services.AddIdentityCore<ApplicationUser>(options =>
             {
+                options.User.RequireUniqueEmail = true;
                 options.Password.RequireDigit = true;
                 options.Password.RequireLowercase = true;
                 options.Password.RequireNonAlphanumeric = true;
                 options.Password.RequireUppercase = true;
                 options.Password.RequiredLength = 6;
+                options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(10);
+                options.Lockout.MaxFailedAccessAttempts = 5;
+                options.Lockout.AllowedForNewUsers = true;
                 options.Tokens.PasswordResetTokenProvider = TokenOptions.DefaultEmailProvider;
             })
                 .AddRoles<IdentityRole>()
@@ -33,6 +37,12 @@ namespace KhalifaWearStore.Web.Extensions
                 {
                     opt.Window = TimeSpan.FromMinutes(2);
                     opt.PermitLimit = 3;
+                    opt.QueueLimit = 0;
+                });
+                options.AddFixedWindowLimiter("AuthPolicy", opt =>
+                {
+                    opt.Window = TimeSpan.FromMinutes(1);
+                    opt.PermitLimit = 15;
                     opt.QueueLimit = 0;
                 });
                 options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;

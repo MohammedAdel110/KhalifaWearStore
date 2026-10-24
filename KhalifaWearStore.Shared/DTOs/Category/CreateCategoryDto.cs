@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Http;
 
 namespace KhalifaWearStore.Shared.DTOs.Category
 {
@@ -10,5 +11,7 @@ namespace KhalifaWearStore.Shared.DTOs.Category
 
         [MaxLength(500)]
         public string? CategoryDescription { get; set; }
+
+        public IFormFile? ImageFile { get; set; }
     }
 }

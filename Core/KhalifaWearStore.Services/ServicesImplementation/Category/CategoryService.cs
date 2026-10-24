@@ -1,4 +1,5 @@
 using AutoMapper;
+using KhalifaWearStore.Abstraction.IServices.Attachment;
 using KhalifaWearStore.Abstraction.IServices.Category;
 using KhalifaWearStore.Domain.Contracts.UnitOfWorkPattern;
 using KhalifaWearStore.Domain.Exceptions;
@@ -6,11 +7,15 @@ using KhalifaWearStore.Services.Specifications.CategorySpec;
 using KhalifaWearStore.Shared.Common.Pagination;
 using KhalifaWearStore.Shared.Common.Params.Category;
 using KhalifaWearStore.Shared.DTOs.Category;
+using KhalifaWearStore.Shared.DTOs.Uploads;
 using CategoryEntity = KhalifaWearStore.Domain.Models.Catalog.Category;
 
 namespace KhalifaWearStore.Services.ServicesImplementation.Category
 {
-    public class CategoryService(IUnitOfWork unitOfWork, IMapper mapper) : ICategoryService
+    public class CategoryService(
+        IUnitOfWork unitOfWork,
+        IMapper mapper,
+        IAttachmentService attachmentService) : ICategoryService
     {
         public async Task<PaginationResponse<CategoryDto>> GetAllCategoriesAsync(CategoryQueryParams queryParams)
         {
@@ -46,6 +51,15 @@ namespace KhalifaWearStore.Services.ServicesImplementation.Category
             var repo = unitOfWork.GetRepository<CategoryEntity, int>();
             var category = mapper.Map<CategoryEntity>(createDto);
 
+            if (createDto.ImageFile != null && createDto.ImageFile.Length > 0)
+            {
+                category.Image = await attachmentService.UploadFileAsync(new UploadFileDto
+                {
+                    File = createDto.ImageFile,
+                    FolderName = "Images/Categories"
+                });
+            }
+
             await repo.AddAsync(category);
             var saved = await unitOfWork.SaveChangesAsync();
             if (saved <= 0)
@@ -61,8 +75,22 @@ namespace KhalifaWearStore.Services.ServicesImplementation.Category
             var category = await repo.GetByIdWithSpecAsync(spec)
                 ?? throw new NotFoundCutomeException($"Category with ID {id} was not found.");
 
+            var existingImage = category.Image;
             mapper.Map(updateDto, category);
             category.UpdatedAt = DateTime.UtcNow;
+
+            if (updateDto.ImageFile != null && updateDto.ImageFile.Length > 0)
+            {
+                category.Image = await attachmentService.UploadFileAsync(new UploadFileDto
+                {
+                    File = updateDto.ImageFile,
+                    FolderName = "Images/Categories"
+                });
+            }
+            else
+            {
+                category.Image = existingImage;
+            }
 
             repo.UpdateAsync(category);
             await unitOfWork.SaveChangesAsync();

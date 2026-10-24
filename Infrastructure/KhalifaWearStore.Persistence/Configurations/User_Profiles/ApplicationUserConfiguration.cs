@@ -20,6 +20,20 @@ namespace KhalifaWearStore.Persistence.Configurations.User_Profiles
                 .HasMaxLength(50)
                 .IsRequired()
                 .HasConversion<string>();
+
+            builder.Property(x => x.Email)
+                .HasMaxLength(256);
+
+            builder.Property(x => x.PhoneNumber)
+                .HasMaxLength(30);
+
+            builder.HasIndex(x => x.Email)
+                .IsUnique()
+                .HasFilter("[Email] IS NOT NULL AND [Email] <> ''");
+
+            builder.HasIndex(x => x.PhoneNumber)
+                .IsUnique()
+                .HasFilter("[PhoneNumber] IS NOT NULL AND [PhoneNumber] <> ''");
         }
     }
 }

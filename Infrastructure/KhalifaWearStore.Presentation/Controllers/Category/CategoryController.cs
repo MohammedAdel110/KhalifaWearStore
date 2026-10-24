@@ -33,9 +33,10 @@ namespace KhalifaWearStore.Presentation.Controllers.Category
 
         [HttpPost]
         [Authorize(Roles = "Admin,Owner")]
+        [Consumes("multipart/form-data", "application/json")]
         [ProducesResponseType(typeof(ApiResponse<CategoryDto>), StatusCodes.Status201Created)]
         [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
-        public async Task<ActionResult> CreateCategory([FromBody] CreateCategoryDto createDto)
+        public async Task<ActionResult> CreateCategory([FromForm] CreateCategoryDto createDto)
         {
             var result = await categoryService.CreateCategoryAsync(createDto);
             return Created(result, "Category created successfully");
@@ -43,9 +44,10 @@ namespace KhalifaWearStore.Presentation.Controllers.Category
 
         [HttpPut("{id:int}")]
         [Authorize(Roles = "Admin,Owner")]
+        [Consumes("multipart/form-data", "application/json")]
         [ProducesResponseType(typeof(ApiResponse<CategoryDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
-        public async Task<ActionResult> UpdateCategory([FromRoute] int id, [FromBody] UpdateCategoryDto updateDto)
+        public async Task<ActionResult> UpdateCategory([FromRoute] int id, [FromForm] UpdateCategoryDto updateDto)
         {
             var result = await categoryService.UpdateCategoryAsync(id, updateDto);
             return Success(result, "Category updated successfully");

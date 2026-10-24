@@ -638,7 +638,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                         type="text"
                         value={promoCodeInput}
                         onChange={(e) => setPromoCodeInput(e.target.value.toUpperCase())}
-                        placeholder="e.g. KHALIFA10, DROP200, FREESHIP"
+                        placeholder={
+                          activePromoCodes.length > 0
+                            ? `e.g. ${activePromoCodes.map((p) => p.code).join(', ')}`
+                            : 'Enter promo code'
+                        }
                         className="flex-1 bg-[#090A0F] border border-white/15 px-3 py-2 text-xs text-white uppercase outline-none focus:border-amber-300"
                       />
                       <button
@@ -649,24 +653,27 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                         APPLY
                       </button>
                     </div>
-                    <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                      {(activePromoCodes.length > 0
-                        ? activePromoCodes.map((p) => p.code)
-                        : ['KHALIFA10', 'DROP200', 'FREESHIP']
-                      ).map((code) => (
-                        <button
-                          key={code}
-                          type="button"
-                          onClick={() => {
-                            setPromoCodeInput(code);
-                            setAppliedPromoInput(code);
-                          }}
-                          className="px-2 py-0.5 bg-white/[0.06] hover:bg-amber-400/20 border border-white/10 text-[9px] font-mono text-amber-300 transition cursor-pointer"
-                        >
-                          {code}
-                        </button>
-                      ))}
-                    </div>
+                    {activePromoCodes.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                        {activePromoCodes.map((promo) => (
+                          <button
+                            key={promo.code}
+                            type="button"
+                            title={promo.description || promo.code}
+                            onClick={() => {
+                              setPromoCodeInput(promo.code);
+                              setAppliedPromoInput(promo.code);
+                            }}
+                            className="px-2 py-0.5 bg-white/[0.06] hover:bg-amber-400/20 border border-white/10 text-[9px] font-mono text-amber-300 transition cursor-pointer flex items-center gap-1"
+                          >
+                            <span className="font-bold">{promo.code}</span>
+                            {promo.description && (
+                              <span className="text-[#9EA2B3] font-sans">({promo.description})</span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                     {pricingPreview.promoMessage && (
                       <p
                         className={`text-[10px] font-medium ${

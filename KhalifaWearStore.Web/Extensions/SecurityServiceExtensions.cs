@@ -37,7 +37,7 @@ namespace KhalifaWearStore.Web.Extensions
             }).AddJwtBearer(options =>
             {
                 options.SaveToken = false;
-                options.RequireHttpsMetadata = env.IsProduction();
+                options.RequireHttpsMetadata = true;
 
                 options.TokenValidationParameters = new TokenValidationParameters
                 {

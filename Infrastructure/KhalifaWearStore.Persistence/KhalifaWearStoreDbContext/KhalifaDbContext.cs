@@ -18,6 +18,7 @@ namespace KhalifaWearStore.Persistence.KhalifaWearStoreDbContext
         public DbSet<Order> Orders { get; set; }
         public DbSet<OrderDetail> OrderDetails { get; set; }
         public DbSet<PromoCode> PromoCodes { get; set; }
+        public DbSet<StoredMedia> StoredMedia { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {

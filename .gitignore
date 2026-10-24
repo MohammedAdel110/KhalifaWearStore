@@ -428,5 +428,7 @@ PharmaBridge.Web/wwwroot/*
 node_modules/
 dist/
 .vite/
+.cert/
+publish*/
 *.local
 

@@ -23,6 +23,7 @@ namespace KhalifaWearStore.Abstraction.IServices.Order
         Task<IReadOnlyList<PromoCodeDto>> GetAllPromoCodesAdminAsync();
         Task<PromoCodeDto> CreatePromoCodeAsync(CreatePromoCodeDto createDto);
         Task<PromoCodeDto> TogglePromoCodeAsync(int id);
+        Task<PromoCodeDto> FeaturePromoCodeOnBannerAsync(int id);
         Task<bool> DeletePromoCodeAsync(int id);
     }
 }

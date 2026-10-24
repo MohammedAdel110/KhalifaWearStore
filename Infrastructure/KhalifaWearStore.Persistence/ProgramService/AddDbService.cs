@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using KhalifaWearStore.Persistence.KhalifaWearStoreDbContext;
@@ -12,7 +13,9 @@ namespace KhalifaWearStore.Persistence.ProgramService
             IConfiguration configuration)
         {
             services.AddDbContext<KhalifaDbContext>(options =>
-                options.UseSqlServer(configuration.GetConnectionString("DefaultConnection")));
+                options
+                    .UseSqlServer(configuration.GetConnectionString("DefaultConnection"))
+                    .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning)));
 
             return services;
         }

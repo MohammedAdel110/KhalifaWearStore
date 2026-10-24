@@ -1,27 +1,19 @@
-using System.ComponentModel.DataAnnotations;
-
 namespace KhalifaWearStore.Shared.DTOs.Auth.Sign_In_Up
 {
     public class RegisterDto
     {
-        [Required]
-        public string FirstName { get; set; } = default!;
+        public string FirstName { get; set; } = string.Empty;
 
-        [Required]
-        public string LastName { get; set; } = default!;
+        public string LastName { get; set; } = string.Empty;
 
-        [Required, EmailAddress]
-        public string Email { get; set; } = default!;
+        public string Email { get; set; } = string.Empty;
 
-        [Required]
-        public string PhoneNo { get; set; } = default!;
+        public string PhoneNo { get; set; } = string.Empty;
 
-        [Required]
-        public string City { get; set; } = default!;
+        public string City { get; set; } = string.Empty;
 
         public string Postcode { get; set; } = string.Empty;
 
-        [Required]
-        public string Password { get; set; } = default!;
+        public string Password { get; set; } = string.Empty;
     }
 }

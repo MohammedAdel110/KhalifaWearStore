@@ -1,5 +1,7 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
+using KhalifaWearStore.Persistence.KhalifaWearStoreDbContext;
 using KhalifaWearStore.Shared.DTOs.Chat;
 
 namespace KhalifaWearStore.Web.Hubs
@@ -11,13 +13,85 @@ namespace KhalifaWearStore.Web.Hubs
         private readonly ConcurrentDictionary<string, string> _connectionToThread = new();
         private readonly object _fileLock = new();
         private readonly string _storageFilePath;
+        private readonly IServiceScopeFactory _scopeFactory;
 
-        public SupportChatStore(IWebHostEnvironment env)
+        public SupportChatStore(IWebHostEnvironment env, IServiceScopeFactory scopeFactory)
         {
+            _scopeFactory = scopeFactory;
             var dataDir = Path.Combine(env.ContentRootPath, "App_Data");
             Directory.CreateDirectory(dataDir);
             _storageFilePath = Path.Combine(dataDir, "support_chats.json");
             LoadFromDisk();
+            LoadFromDatabase();
+        }
+
+        private void LoadFromDatabase()
+        {
+            try
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var db = scope.ServiceProvider.GetRequiredService<KhalifaDbContext>();
+                using var conn = db.Database.GetDbConnection();
+                if (conn.State != System.Data.ConnectionState.Open)
+                    conn.Open();
+
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = @"
+                    IF OBJECT_ID('SupportChatThreads', 'U') IS NOT NULL
+                    BEGIN
+                        SELECT [PayloadJson] FROM [SupportChatThreads];
+                    END";
+                using var reader = cmd.ExecuteReader();
+                while (reader.Read())
+                {
+                    var json = reader.GetString(0);
+                    var thread = JsonSerializer.Deserialize<ChatThreadSummaryDto>(json);
+                    if (thread != null && !string.IsNullOrWhiteSpace(thread.ThreadId))
+                    {
+                        thread.IsCustomerOnline = false;
+                        _threads[thread.ThreadId] = thread;
+                    }
+                }
+            }
+            catch
+            {
+                // Ignore if table not created yet on first boot
+            }
+        }
+
+        private void SaveThreadToDatabase(ChatThreadSummaryDto thread)
+        {
+            try
+            {
+                var json = JsonSerializer.Serialize(thread);
+                using var scope = _scopeFactory.CreateScope();
+                var db = scope.ServiceProvider.GetRequiredService<KhalifaDbContext>();
+                db.Database.ExecuteSqlRaw(@"
+                    IF OBJECT_ID('SupportChatThreads', 'U') IS NOT NULL
+                    BEGIN
+                        IF EXISTS (SELECT 1 FROM [SupportChatThreads] WHERE [ThreadId] = {0})
+                            UPDATE [SupportChatThreads]
+                            SET [CustomerName] = {1},
+                                [CustomerEmail] = {2},
+                                [LastMessageText] = {3},
+                                [LastMessageAt] = {4},
+                                [PayloadJson] = {5}
+                            WHERE [ThreadId] = {0};
+                        ELSE
+                            INSERT INTO [SupportChatThreads] ([ThreadId], [CustomerName], [CustomerEmail], [LastMessageText], [LastMessageAt], [PayloadJson])
+                            VALUES ({0}, {1}, {2}, {3}, {4}, {5});
+                    END",
+                    thread.ThreadId,
+                    thread.CustomerName ?? "KF Guest",
+                    (object?)thread.CustomerEmail ?? DBNull.Value,
+                    thread.LastMessageText ?? string.Empty,
+                    thread.LastMessageAt,
+                    json);
+            }
+            catch
+            {
+                // Fallback to disk cache if DB connection is transiently busy
+            }
         }
 
         private void LoadFromDisk()
@@ -123,6 +197,7 @@ namespace KhalifaWearStore.Web.Hubs
             }
 
             SaveToDisk();
+            SaveThreadToDatabase(thread);
             return CloneThread(thread);
         }
 
@@ -198,6 +273,7 @@ namespace KhalifaWearStore.Web.Hubs
             }
 
             SaveToDisk();
+            SaveThreadToDatabase(thread);
             return (message, CloneThread(thread));
         }
 
@@ -237,6 +313,7 @@ namespace KhalifaWearStore.Web.Hubs
             }
 
             SaveToDisk();
+            SaveThreadToDatabase(thread);
             return (message, CloneThread(thread));
         }
 
@@ -259,6 +336,7 @@ namespace KhalifaWearStore.Web.Hubs
             }
 
             SaveToDisk();
+            SaveThreadToDatabase(thread);
             return CloneThread(thread);
         }
 

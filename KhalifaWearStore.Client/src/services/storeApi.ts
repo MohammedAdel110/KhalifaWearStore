@@ -11,6 +11,7 @@ export interface CategoryDto {
   id: number;
   categoryName: string;
   categoryDescription: string | null;
+  image?: string | null;
   productsCount?: number;
 }
 
@@ -168,7 +169,7 @@ export function getProductColorVariants(
       list.push({
         colour: v.colour,
         colorHex: resolveColourHex(v.colour, v.colorHex),
-        image: v.image || fallbackImg,
+        image: v.image ? resolveProductImage(v.image, product.id) : fallbackImg,
       });
     }
   }
@@ -212,7 +213,18 @@ export function getProductColorVariants(
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function resolveProductImage(image: string | null | undefined, _id = 1): string {
-  return image || PRODUCT_IMAGE_PLACEHOLDER;
+  if (!image) return PRODUCT_IMAGE_PLACEHOLDER;
+  if (
+    typeof window !== 'undefined' &&
+    window.location.protocol === 'https:' &&
+    image.startsWith('http://')
+  ) {
+    if (image.startsWith('http://localhost:5050/')) {
+      return image.replace('http://localhost:5050/', 'https://localhost:7050/');
+    }
+    return image.replace(/^http:\/\//i, 'https://');
+  }
+  return image;
 }
 
 async function extractError(res: Response): Promise<string> {
@@ -279,20 +291,59 @@ export async function fetchStocksByProduct(productId: number): Promise<StockDto[
 // ============================================================================
 
 export async function adminCreateCategory(
-  payload: { categoryName: string; categoryDescription: string },
+  payload: {
+    categoryName: string;
+    categoryDescription: string;
+    imageFile?: File | null;
+  },
   token: string
 ): Promise<CategoryDto> {
+  const form = new FormData();
+  form.append('CategoryName', payload.categoryName);
+  form.append('CategoryDescription', payload.categoryDescription);
+  if (payload.imageFile) {
+    form.append('ImageFile', payload.imageFile);
+  }
+
   const res = await fetch('/api/categories', {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify(payload),
+    body: form,
   });
   if (!res.ok) throw new Error(await extractError(res));
   const json = (await res.json()) as ApiResponse<CategoryDto>;
   if (!json.data) throw new Error(json.message || 'Failed to create category');
+  return json.data;
+}
+
+export async function adminUpdateCategory(
+  id: number,
+  payload: {
+    categoryName: string;
+    categoryDescription: string;
+    imageFile?: File | null;
+  },
+  token: string
+): Promise<CategoryDto> {
+  const form = new FormData();
+  form.append('CategoryName', payload.categoryName);
+  form.append('CategoryDescription', payload.categoryDescription);
+  if (payload.imageFile) {
+    form.append('ImageFile', payload.imageFile);
+  }
+
+  const res = await fetch(`/api/categories/${id}`, {
+    method: 'PUT',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: form,
+  });
+  if (!res.ok) throw new Error(await extractError(res));
+  const json = (await res.json()) as ApiResponse<CategoryDto>;
+  if (!json.data) throw new Error(json.message || 'Failed to update category');
   return json.data;
 }
 
@@ -585,6 +636,7 @@ export interface PromoCodeDto {
   discountValue: number;
   minOrderSubtotal: number;
   isActive: boolean;
+  isFeaturedOnBanner?: boolean;
   description: string;
   createdAt?: string;
 }
@@ -595,6 +647,7 @@ export interface CreatePromoCodePayload {
   discountValue: number;
   minOrderSubtotal: number;
   isActive?: boolean;
+  isFeaturedOnBanner?: boolean;
   description?: string;
 }
 
@@ -673,30 +726,6 @@ export function calculateShippingAndPromoPreview(
         promoMessage =
           matchedDynamic.description || 'Complimentary Express Delivery unlocked';
       }
-    } else if (code === 'KHALIFA10' || code === 'KF10') {
-      discountAmount = Math.round(subtotal * 0.1);
-      appliedPromoCode = code;
-      promoMessage = '10% KHALIFA VIP Discount applied';
-    } else if (code === 'KHALIFA15' || code === 'VIP15') {
-      if (subtotal >= 3000) {
-        discountAmount = Math.round(subtotal * 0.15);
-        appliedPromoCode = code;
-        promoMessage = '15% VIP Member Discount applied';
-      } else {
-        promoMessage = 'KHALIFA15 requires a minimum order of 3,000 EGP';
-      }
-    } else if (code === 'DROP200') {
-      if (subtotal >= 2000) {
-        discountAmount = 200;
-        appliedPromoCode = code;
-        promoMessage = '200 EGP Drop Voucher applied';
-      } else {
-        promoMessage = 'DROP200 requires a minimum order of 2,000 EGP';
-      }
-    } else if (code === 'FREESHIP') {
-      shippingFee = 0;
-      appliedPromoCode = code;
-      promoMessage = 'Complimentary Express Delivery unlocked';
     } else {
       promoMessage = 'Invalid or inactive promo code.';
     }
@@ -965,6 +994,22 @@ export async function adminTogglePromoCode(
   if (!res.ok) throw new Error(await extractError(res));
   const json = (await res.json()) as ApiResponse<PromoCodeDto>;
   if (!json.data) throw new Error(json.message || 'Failed to toggle promo code');
+  return json.data;
+}
+
+export async function adminFeaturePromoCode(
+  id: number,
+  token: string
+): Promise<PromoCodeDto> {
+  const res = await fetch(`/api/orders/admin/promo-codes/${id}/feature`, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  if (!res.ok) throw new Error(await extractError(res));
+  const json = (await res.json()) as ApiResponse<PromoCodeDto>;
+  if (!json.data) throw new Error(json.message || 'Failed to update banner promo code');
   return json.data;
 }
 
